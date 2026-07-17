@@ -155,6 +155,21 @@ const PUBLIC_SUPABASE_CONFIGURED = Boolean(
 const INITIAL_USER: CurrentUserState = PUBLIC_SUPABASE_CONFIGURED
   ? { name: "", role: "Viewer" }
   : { name: "Eric", role: "Admin" };
+const INITIAL_RESEARCH_POOL_STATE: ResearchPoolState = PUBLIC_SUPABASE_CONFIGURED
+  ? {
+      people: [],
+      activities: [],
+      updates: [],
+      dashboardBrief: {
+        title: "加载工作简报",
+        description: "正在从云端加载最新人员名单和工作记录。",
+        focusAreas: [],
+        updatedAt: "",
+        updatedBy: "",
+      },
+      nextSteps: [],
+    }
+  : seedResearchPoolState;
 
 const UPDATE_TYPES: UpdateType[] = [
   "新增人员",
@@ -592,13 +607,14 @@ export function ResearchPoolApp({
   initialView,
   selectedId,
 }: ResearchPoolAppProps) {
-  const [state, setState] = useState<ResearchPoolState>(seedResearchPoolState);
+  const [state, setState] = useState<ResearchPoolState>(INITIAL_RESEARCH_POOL_STATE);
   const [view, setView] = useState<View>(initialView);
   const [selectedEntityId, setSelectedEntityId] = useState(selectedId ?? "");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [currentUser, setCurrentUser] = useState<CurrentUserState>(INITIAL_USER);
   const [authRequired, setAuthRequired] = useState(PUBLIC_SUPABASE_CONFIGURED);
   const [importText, setImportText] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
 
   const requestHeaders = useCallback(
@@ -650,7 +666,16 @@ export function ResearchPoolApp({
         dashboardBrief: briefData.brief,
         nextSteps: nextStepsData.nextSteps,
       });
-    } catch {
+      setLoadError("");
+    } catch (error) {
+      if (PUBLIC_SUPABASE_CONFIGURED) {
+        const message =
+          error instanceof Error ? error.message : "云端数据加载失败";
+        setLoadError(`云端数据加载失败，请刷新或检查登录状态。${message}`);
+        setNotice("云端数据加载失败");
+        return;
+      }
+
       setState({
         people: seedResearchPoolState.people.map(normalizePerson),
         activities: seedResearchPoolState.activities,
@@ -683,6 +708,12 @@ export function ResearchPoolApp({
       setCurrentUser(data.user);
       return { authenticated: true, authRequired: nextAuthRequired };
     } catch {
+      if (PUBLIC_SUPABASE_CONFIGURED) {
+        setAuthRequired(true);
+        setCurrentUser({ name: "", role: "Viewer" });
+        return { authenticated: false, authRequired: true };
+      }
+
       setAuthRequired(false);
       setCurrentUser({ name: "Eric", role: "Admin" });
       return { authenticated: true, authRequired: false };
@@ -1220,7 +1251,7 @@ export function ResearchPoolApp({
       method: "POST",
     });
     setCurrentUser({ name: "", role: "Viewer" });
-    setState(seedResearchPoolState);
+    setState(INITIAL_RESEARCH_POOL_STATE);
     navigate("login");
   }
 
@@ -1237,6 +1268,11 @@ export function ResearchPoolApp({
         <button className="toast" onClick={() => setNotice("")} type="button">
           {notice}
         </button>
+      )}
+      {loadError && (
+        <div className="system-error" role="alert">
+          {loadError}
+        </div>
       )}
 
       {view === "login" && (

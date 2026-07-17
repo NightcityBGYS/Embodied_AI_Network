@@ -146,6 +146,22 @@ a:hover {
   z-index: 80;
 }
 
+.system-error {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  color: #9a3412;
+  font-size: 14px;
+  font-weight: 700;
+  left: 50%;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 10px 14px;
+  position: fixed;
+  top: 86px;
+  transform: translateX(-50%);
+  z-index: 79;
+}
+
 .text-tab,
 .button,
 .small-button,
