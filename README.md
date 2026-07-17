@@ -154,6 +154,7 @@ npm run build
 npm run build:vercel
 npm test
 npm run lint
+npm run smoke:supabase
 ```
 
 ## 第一版暂不做
