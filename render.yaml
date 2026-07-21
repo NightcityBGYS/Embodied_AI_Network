@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: embodied-ai-network
+    runtime: node
+    plan: free
+    region: oregon
+    repo: https://github.com/NightcityBGYS/Embodied_AI_Network.git
+    branch: main
+    buildCommand: npm ci && npm run build:vercel
+    startCommand: npm run start:render
+    autoDeployTrigger: commit
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        fromService:
+          type: web
+          name: embodied-ai-network
+          envVarKey: RENDER_EXTERNAL_URL

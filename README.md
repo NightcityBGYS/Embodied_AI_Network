@@ -110,7 +110,7 @@ NEXT_PUBLIC_SITE_URL=
 
 注意：
 
-- `SUPABASE_SERVICE_ROLE_KEY` 只能放在本地 `.env.local` 或 Vercel 服务器环境变量中，不能提交到 GitHub。
+- `SUPABASE_SERVICE_ROLE_KEY` 只能放在本地 `.env.local` 或 Render / Vercel 服务器环境变量中，不能提交到 GitHub。
 - Supabase Auth 建议关闭公开注册，只邀请 Eric 和上级账号。
 - `user_profiles.role` 使用小写：`admin`、`editor`、`viewer`。
 - 正式环境不要依赖 `public/uploads`，头像应使用 Supabase Storage。
@@ -122,17 +122,28 @@ supabase/migrations/20260717000000_cloud_deployment.sql
 supabase/seed.sql
 ```
 
-部署前建议顺序：
+Render 部署建议顺序：
 
 1. 在 Supabase 创建项目。
 2. 执行 `supabase/migrations/20260717000000_cloud_deployment.sql`。
 3. 在 Supabase Auth 中创建 Eric 和上级账号，关闭公开注册。
 4. 在 `user_profiles` 中写入账号对应角色。
 5. 按需执行 `supabase/seed.sql` 导入 starter 数据。
-6. 在 Vercel 中导入 GitHub 仓库。
-7. 配置 `.env.example` 中列出的环境变量。
-8. Vercel Build Command 使用 `npm run build:vercel`。仓库已包含 `vercel.json`，正常导入时会自动读取。
-9. 部署后检查登录、数据持久化、头像、飞书链接和 Viewer 权限。
+6. 将代码推送到 GitHub。
+7. 在 Render 创建 Blueprint，选择本仓库根目录的 `render.yaml`。
+8. Render 会提示填写 `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` 和 `SUPABASE_SERVICE_ROLE_KEY`，不要把真实值写入仓库。
+9. `NEXT_PUBLIC_SITE_URL` 会自动引用 Render 的 `RENDER_EXTERNAL_URL`。
+10. 部署后检查登录、数据持久化、头像、飞书链接和 Viewer 权限。
+
+Render Blueprint 已包含：
+
+```text
+Build Command: npm ci && npm run build:vercel
+Start Command: npm run start:render
+Health Check: /login
+```
+
+如果改用 Vercel，仓库仍保留 `vercel.json`，Build Command 使用 `npm run build:vercel`。
 
 ## 验收建议
 

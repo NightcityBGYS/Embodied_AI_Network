@@ -12,6 +12,7 @@
     "dev:vercel": "next dev",
     "build:vercel": "next build",
     "start:vercel": "next start",
+    "start:render": "next start -p ${PORT:-3000}",
     "test": "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= SUPABASE_SERVICE_ROLE_KEY= npm run build && NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= SUPABASE_SERVICE_ROLE_KEY= node --test tests/rendered-html.test.mjs",
     "smoke:supabase": "node scripts/cloud-smoke-test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
