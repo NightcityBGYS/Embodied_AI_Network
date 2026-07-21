@@ -6,7 +6,7 @@ import {
   ROLE_OPTIONS,
   seedResearchPoolState,
 } from "@/lib/seed-data";
-import { nowStamp, todayDate } from "@/lib/time";
+import { APP_TIME_ZONE, nowStamp, todayDate } from "@/lib/time";
 import type {
   ActivityLog,
   DashboardBrief,
@@ -312,7 +312,68 @@ function formatDateLabel(dateValue: string) {
 }
 
 function formatTimeLabel(dateValue: string) {
-  return dateValue.slice(11, 16) || "--:--";
+  const trimmed = dateValue.trim();
+  if (!trimmed) {
+    return "--:--";
+  }
+
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+    const date = new Date(trimmed);
+    if (!Number.isNaN(date.getTime())) {
+      return new Intl.DateTimeFormat("zh-CN", {
+        hour: "2-digit",
+        hour12: false,
+        minute: "2-digit",
+        timeZone: APP_TIME_ZONE,
+      }).format(date);
+    }
+  }
+
+  const match = trimmed.match(/[ T](\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "--:--";
+}
+
+function displayUpdateSummary(update: WorkUpdate) {
+  const sentences = update.summary
+    .replace(/\n+/g, "。")
+    .split("。")
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => !isBasicUpdateSentence(sentence));
+
+  return sentences.join("。");
+}
+
+function isBasicUpdateSentence(sentence: string) {
+  const normalized = sentence.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return true;
+  }
+  if (/研究方向[:：]/.test(normalized)) {
+    return true;
+  }
+  if (
+    /(^|\s)(PhD|Master|Bachelor|Associate Professor|Assistant Professor|Senior Lecturer|Lecturer|Professor|Researcher)\b/i.test(
+      normalized,
+    ) &&
+    normalized.includes(" · ")
+  ) {
+    return true;
+  }
+  if (
+    (normalized.match(/ · /g) ?? []).length >= 2 &&
+    /(University|Institute|Lab|Group|Draper|Boston|MIT|Harvard|大学|学院|实验室|团队|博士|硕士|教授|讲师)/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function visibleUpdateOrganization(value: string) {
+  const trimmed = value.trim();
+  return trimmed && !/待补充/.test(trimmed) ? trimmed : "";
 }
 
 function isToday(dateValue: string) {
@@ -2047,12 +2108,19 @@ function UpdateTimeline({
       {groupedUpdates.map((group) => (
         <div className="timeline-day" key={group.date}>
           <h3>{formatDateLabel(group.date)}</h3>
-          {group.items.map((update) => (
-            <article className="timeline-item" key={update.id}>
-              <time>{formatTimeLabel(update.occurredAt)}</time>
-              <div>
+          {group.items.map((update) => {
+            const summary = displayUpdateSummary(update);
+            const organization = visibleUpdateOrganization(update.linkedOrganization);
+            const hasLinks = Boolean(update.linkedPerson || organization || update.feishuUrl);
+
+            return (
+              <article className="timeline-item" key={update.id}>
                 <div className="timeline-item-head">
-                  <span className="update-type">{update.updateType}</span>
+                  <div className="timeline-meta">
+                    <span className="update-type">{update.updateType}</span>
+                    <time>{formatTimeLabel(update.occurredAt)}</time>
+                    {update.author && <span>{update.author}</span>}
+                  </div>
                   {canEdit && (
                     <details className="update-more-menu">
                       <summary aria-label={`管理 ${update.title}`}>···</summary>
@@ -2080,21 +2148,22 @@ function UpdateTimeline({
                   )}
                 </div>
                 <h4>{update.title}</h4>
-                {update.summary && <p>{update.summary}</p>}
+                {summary && <p className="timeline-summary">{summary}</p>}
                 {showInsight && update.insight && <blockquote>判断：{update.insight}</blockquote>}
-                <div className="update-links">
-                  {update.linkedPerson && <span>{update.linkedPerson}</span>}
-                  {update.linkedOrganization && <span>{update.linkedOrganization}</span>}
-                  {update.feishuUrl && (
-                    <a href={update.feishuUrl} rel="noreferrer" target="_blank">
-                      查看飞书 ↗
-                    </a>
-                  )}
-                  <small>{update.author}</small>
-                </div>
-              </div>
-            </article>
-          ))}
+                {hasLinks && (
+                  <div className="update-links">
+                    {update.linkedPerson && <span>{update.linkedPerson}</span>}
+                    {organization && <span>{organization}</span>}
+                    {update.feishuUrl && (
+                      <a href={update.feishuUrl} rel="noreferrer" target="_blank">
+                        飞书 ↗
+                      </a>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
       ))}
     </div>

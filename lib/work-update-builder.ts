@@ -24,21 +24,6 @@ function sameText(left = "", right = "") {
   return left.trim() === right.trim();
 }
 
-function compactAffiliation(person: Person) {
-  return [
-    person.title || person.role,
-    person.institution || "机构待补充",
-    person.lab || "实验室待补充",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function topicSummary(person: Person) {
-  const topics = person.researchTopics.slice(0, 3);
-  return topics.length ? `研究方向：${topics.join("、")}` : "";
-}
-
 function baseUpdate(
   person: Person,
   context: BuildContext,
@@ -65,18 +50,12 @@ export function buildPersonCreatedUpdate(
   person: Person,
   context: BuildContext,
 ): AutoUpdate {
-  const details = [
-    compactAffiliation(person),
-    topicSummary(person),
-    person.feishuDocUrl ? "已关联飞书人物资料" : "",
-  ].filter(Boolean);
-
   return baseUpdate(
     person,
     context,
     "新增人员",
     `新增人员：${person.name}`,
-    details.join("。"),
+    person.feishuDocUrl ? "已关联飞书人物资料。" : "",
     person.shortAssessment?.trim() || "",
   );
 }
@@ -141,6 +120,5 @@ export function buildPersonPatchedUpdate(
     return null;
   }
 
-  const summaryParts = [changes.join("；"), compactAffiliation(after), topicSummary(after)].filter(Boolean);
-  return baseUpdate(after, context, updateType, title, summaryParts.join("。"), insight);
+  return baseUpdate(after, context, updateType, title, `${changes.join("；")}。`, insight);
 }
