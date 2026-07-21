@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { accessCookieName } from "./lib/server-auth";
+import { accessCookieName, appSessionCookieName } from "./lib/server-auth";
 
 const protectedPrefixes = ["/", "/dashboard", "/updates", "/people"];
 
@@ -25,7 +25,8 @@ export function proxy(request: NextRequest) {
   }
 
   const accessToken = request.cookies.get(accessCookieName())?.value;
-  if (accessToken) {
+  const appSession = request.cookies.get(appSessionCookieName())?.value;
+  if (accessToken || appSession) {
     return NextResponse.next();
   }
 
@@ -38,4 +39,3 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/", "/dashboard/:path*", "/updates/:path*", "/people/:path*"],
 };
-

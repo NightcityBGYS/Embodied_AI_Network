@@ -1,0 +1,144 @@
+import type { Person, UpdateType, WorkUpdate } from "./research-pool-types";
+
+type AutoUpdate = Omit<WorkUpdate, "id" | "createdAt" | "updatedAt">;
+
+type BuildContext = {
+  author: string;
+  occurredAt: string;
+};
+
+type PatchContext = BuildContext & {
+  labIsNew: boolean;
+};
+
+function normalizePriority(value = "") {
+  if (/核心|高/.test(value)) return "高";
+  if (/中/.test(value)) return "中";
+  if (/低|暂不/.test(value)) return "低";
+  return "未评估";
+}
+
+function sameText(left = "", right = "") {
+  return left.trim() === right.trim();
+}
+
+function compactAffiliation(person: Person) {
+  return [
+    person.title || person.role,
+    person.institution || "机构待补充",
+    person.lab || "实验室待补充",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function topicSummary(person: Person) {
+  const topics = person.researchTopics.slice(0, 3);
+  return topics.length ? `研究方向：${topics.join("、")}` : "";
+}
+
+function baseUpdate(
+  person: Person,
+  context: BuildContext,
+  updateType: UpdateType,
+  title: string,
+  summary: string,
+  insight = "",
+): AutoUpdate {
+  return {
+    updateType,
+    title,
+    summary,
+    insight,
+    linkedPersonId: person.id,
+    linkedPerson: person.name,
+    linkedOrganization: person.lab || person.institution,
+    feishuUrl: person.feishuDocUrl,
+    author: context.author,
+    occurredAt: context.occurredAt,
+  };
+}
+
+export function buildPersonCreatedUpdate(
+  person: Person,
+  context: BuildContext,
+): AutoUpdate {
+  const details = [
+    compactAffiliation(person),
+    topicSummary(person),
+    person.feishuDocUrl ? "已关联飞书人物资料" : "",
+  ].filter(Boolean);
+
+  return baseUpdate(
+    person,
+    context,
+    "新增人员",
+    `新增人员：${person.name}`,
+    details.join("。"),
+    person.shortAssessment?.trim() || "",
+  );
+}
+
+export function buildPersonPatchedUpdate(
+  before: Person,
+  after: Person,
+  context: PatchContext,
+): AutoUpdate | null {
+  const changes: string[] = [];
+  let updateType: UpdateType | "" = "";
+  let title = `更新人员：${after.name}`;
+  let insight = "";
+
+  const beforePriority = normalizePriority(before.priority);
+  const afterPriority = normalizePriority(after.priority);
+  if (beforePriority !== afterPriority) {
+    changes.push(`优先级从「${beforePriority}」调整为「${afterPriority}」`);
+    updateType ||= "调整优先级";
+    title = `调整优先级：${after.name}`;
+  }
+
+  if (!sameText(before.shortAssessment, after.shortAssessment) && after.shortAssessment.trim()) {
+    changes.push("更新简短判断");
+    updateType = "新增研究判断";
+    title = `更新判断：${after.name}`;
+    insight = after.shortAssessment.trim();
+  }
+
+  if (!sameText(before.feishuDocUrl, after.feishuDocUrl) && after.feishuDocUrl.trim()) {
+    changes.push("更新飞书人物资料链接");
+    updateType ||= "新增资料";
+    title = `更新人物资料：${after.name}`;
+  }
+
+  if (!sameText(before.lab, after.lab) && after.lab.trim() && context.labIsNew) {
+    changes.push(`补充新实验室：${after.lab.trim()}`);
+    updateType ||= "新增实验室";
+    title = `补充实验室：${after.lab.trim()}`;
+  }
+
+  if (
+    !sameText(before.researchStatus, after.researchStatus) &&
+    after.researchStatus.includes("调研完成")
+  ) {
+    changes.push("完成人物调研");
+    updateType ||= "完成人物调研";
+    title = `完成人物调研：${after.name}`;
+  }
+
+  if (
+    (!sameText(before.researchStatus, after.researchStatus) &&
+      after.researchStatus.includes("已核验")) ||
+    (!sameText(before.lastVerifiedAt, after.lastVerifiedAt) && Boolean(after.lastVerifiedAt))
+  ) {
+    changes.push("完成信息核验");
+    updateType ||= "完成信息核验";
+    title = `完成信息核验：${after.name}`;
+  }
+
+  if (!changes.length || !updateType) {
+    return null;
+  }
+
+  const summaryParts = [changes.join("；"), compactAffiliation(after), topicSummary(after)].filter(Boolean);
+  return baseUpdate(after, context, updateType, title, summaryParts.join("。"), insight);
+}

@@ -95,12 +95,14 @@ test("people directory renders read-only management summary", async () => {
   assert.equal(response.status, 200);
 
   const html = await response.text();
-  assert.match(html, /Eric 判断/);
+  assert.match(html, /当前进展/);
   assert.match(html, /详情 ↗/);
   assert.match(html, /\+ 添加简短判断/);
   assert.match(html, /更换头像/);
   assert.match(html, /快捷筛选/);
   assert.match(html, /教授 \/ PI/);
+  assert.doesNotMatch(html, /Eric 判断/);
+  assert.doesNotMatch(html, /实验室待补充/);
   assert.doesNotMatch(html, /当前阶段/);
   assert.doesNotMatch(html, /负责人和截止日期/);
   assert.doesNotMatch(html, /查看人物详情 ↗/);

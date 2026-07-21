@@ -6,6 +6,7 @@ import {
   ROLE_OPTIONS,
   seedResearchPoolState,
 } from "@/lib/seed-data";
+import { nowStamp, todayDate } from "@/lib/time";
 import type {
   ActivityLog,
   DashboardBrief,
@@ -62,7 +63,7 @@ type CommonPeopleView =
   | "bu"
   | "industry";
 
-type CardEditMode = "basic" | "priority" | "doc" | "avatar" | "assessment";
+type CardEditMode = "basic" | "priority" | "doc" | "avatar" | "assessment" | "progress";
 
 type PersonCardDraft = Pick<
   Person,
@@ -74,6 +75,7 @@ type PersonCardDraft = Pick<
   | "avatarUrl"
   | "researchTopics"
   | "shortAssessment"
+  | "nextAction"
   | "priority"
   | "feishuDocUrl"
   | "supervisorNote"
@@ -262,18 +264,6 @@ function slugify(value: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || `person-${Date.now()}`
   );
-}
-
-function nowStamp() {
-  const date = new Date();
-  const pad = (value: number) => `${value}`.padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function todayDate() {
-  return nowStamp().slice(0, 10);
 }
 
 function splitList(value: string) {
@@ -614,6 +604,7 @@ export function ResearchPoolApp({
   const [currentUser, setCurrentUser] = useState<CurrentUserState>(INITIAL_USER);
   const [authRequired, setAuthRequired] = useState(PUBLIC_SUPABASE_CONFIGURED);
   const [importText, setImportText] = useState("");
+  const [isLoading, setIsLoading] = useState(PUBLIC_SUPABASE_CONFIGURED);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -625,6 +616,7 @@ export function ResearchPoolApp({
   );
 
   const loadState = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [
         peopleResponse,
@@ -683,6 +675,8 @@ export function ResearchPoolApp({
         dashboardBrief: seedResearchPoolState.dashboardBrief,
         nextSteps: seedResearchPoolState.nextSteps,
       });
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -968,7 +962,8 @@ export function ResearchPoolApp({
       headers: requestHeaders(),
     });
     if (!response.ok) {
-      throw new Error("工作记录删除失败");
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || "工作记录删除失败");
     }
     await loadState();
     setNotice("工作记录已删除");
@@ -1228,11 +1223,11 @@ export function ResearchPoolApp({
     navigate("dashboard");
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string) {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: requestHeaders(),
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     });
     const data = (await response.json().catch(() => ({}))) as { error?: string };
     if (!response.ok) {
@@ -1272,6 +1267,11 @@ export function ResearchPoolApp({
       {loadError && (
         <div className="system-error" role="alert">
           {loadError}
+        </div>
+      )}
+      {isLoading && view !== "login" && (
+        <div className="loading-strip" aria-live="polite" role="status">
+          正在同步云端数据
         </div>
       )}
 
@@ -1490,17 +1490,16 @@ function LoginView({
   authRequired: boolean;
   currentUser: CurrentUserState;
   onEnter: () => void;
-  onLogin: (email: string, password: string) => Promise<void>;
+  onLogin: (email: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState(currentUser.email ?? "");
-  const [password, setPassword] = useState("");
   const [saveState, setSaveState] = useState<SaveState>(EMPTY_SAVE_STATE);
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveState({ ...EMPTY_SAVE_STATE, saving: true });
     try {
-      await onLogin(email, password);
+      await onLogin(email);
       setSaveState({ error: "", saving: false, success: "登录成功" });
     } catch (error) {
       setSaveState({
@@ -1532,20 +1531,10 @@ function LoginView({
               value={email}
             />
           </label>
-          <label className="field-label">
-            密码
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="请输入 Supabase 账号密码"
-              type="password"
-              value={password}
-            />
-          </label>
           {saveState.error && <p className="form-error">{saveState.error}</p>}
           {saveState.success && <p className="form-success">{saveState.success}</p>}
           <button className="button primary full" disabled={saveState.saving} type="submit">
-            {saveState.saving ? "登录中..." : "登录"}
+            {saveState.saving ? "进入中..." : "进入系统"}
           </button>
         </form>
       ) : (
@@ -2621,6 +2610,7 @@ function PeopleView({
     avatarUrl: "",
     researchTopics: [],
     shortAssessment: "",
+    nextAction: "",
     priority: "",
     feishuDocUrl: "",
     supervisorNote: "",
@@ -2789,6 +2779,7 @@ function PeopleView({
       avatarUrl: person.avatarUrl,
       researchTopics: person.researchTopics,
       shortAssessment: person.shortAssessment,
+      nextAction: person.nextAction,
       priority: normalizePriority(person.priority),
       feishuDocUrl: person.feishuDocUrl,
       supervisorNote: person.supervisorNote,
@@ -2811,7 +2802,9 @@ function PeopleView({
           ? { avatarUrl: cardDraft.avatarUrl.trim() }
           : editMode === "assessment"
             ? { shortAssessment: cardDraft.shortAssessment.trim().slice(0, 150) }
-        : editMode === "doc"
+          : editMode === "progress"
+            ? { nextAction: cardDraft.nextAction.trim().slice(0, 120) }
+          : editMode === "doc"
           ? {
               feishuDocUrl: cardDraft.feishuDocUrl.trim(),
               supervisorNote: cardDraft.supervisorNote.trim(),
@@ -2826,6 +2819,7 @@ function PeopleView({
               avatarUrl: cardDraft.avatarUrl.trim(),
               researchTopics: cardDraft.researchTopics.filter(Boolean),
               shortAssessment: cardDraft.shortAssessment.trim().slice(0, 150),
+              nextAction: cardDraft.nextAction.trim().slice(0, 120),
             };
 
     onQuickUpdate(
@@ -2837,6 +2831,8 @@ function PeopleView({
           ? "头像"
           : editMode === "assessment"
             ? "简短判断"
+            : editMode === "progress"
+              ? "当前进展"
         : editMode === "doc"
           ? "人物详情链接"
           : "基础信息",
@@ -2858,22 +2854,60 @@ function PeopleView({
           <div>
             <p className="eyebrow">人员目录</p>
             <h1>科研对象名单</h1>
-            <p>看 Eric 的简短判断，调优先级，完整资料从飞书打开。</p>
+            <p>看简短判断，调优先级，完整资料从飞书打开。</p>
           </div>
           <div className="directory-metrics" aria-label="当前结果概览">
-            <button className={commonView === "all" ? "active" : ""} onClick={() => setCommonView("all")} type="button">
+            <button
+              className={commonView === "all" && !filters.priorities.length ? "active" : ""}
+              onClick={() => {
+                setCommonView("all");
+                if (filters.priorities.length) {
+                  onFilterChange({ ...filters, priorities: [] });
+                }
+              }}
+              type="button"
+            >
               <strong>{filteredPeople.length}</strong>
               <small>总人数</small>
             </button>
-            <button className={commonView === "high" ? "active" : ""} onClick={() => setCommonView("high")} type="button">
+            <button
+              className={commonView === "high" && !filters.priorities.length ? "active" : ""}
+              onClick={() => {
+                setCommonView("high");
+                if (filters.priorities.length) {
+                  onFilterChange({ ...filters, priorities: [] });
+                }
+              }}
+              type="button"
+            >
               <strong>{highCount}</strong>
               <small>高</small>
             </button>
-            <button type="button">
+            <button
+              className={filters.priorities.includes("中") ? "active" : ""}
+              onClick={() => {
+                setCommonView("all");
+                onFilterChange({
+                  ...filters,
+                  priorities: filters.priorities.includes("中") ? [] : ["中"],
+                });
+              }}
+              type="button"
+            >
               <strong>{mediumCount}</strong>
               <small>中</small>
             </button>
-            <button type="button">
+            <button
+              className={filters.priorities.includes("低") ? "active" : ""}
+              onClick={() => {
+                setCommonView("all");
+                onFilterChange({
+                  ...filters,
+                  priorities: filters.priorities.includes("低") ? [] : ["低"],
+                });
+              }}
+              type="button"
+            >
               <strong>{lowCount}</strong>
               <small>低</small>
             </button>
@@ -2887,7 +2921,7 @@ function PeopleView({
                 onChange={(event) =>
                   onFilterChange({ ...filters, search: event.target.value })
                 }
-                placeholder="搜索姓名、学校、实验室、研究方向或 Eric 判断"
+                placeholder="搜索姓名、学校、实验室、研究方向或简短判断"
                 value={filters.search}
               />
             </div>
@@ -2921,7 +2955,12 @@ function PeopleView({
             <button
               className={commonView === item.key ? "quick-filter active" : "quick-filter"}
               key={item.label}
-              onClick={() => setCommonView(commonView === item.key ? "all" : item.key)}
+              onClick={() => {
+                setCommonView(commonView === item.key ? "all" : item.key);
+                if (filters.priorities.length) {
+                  onFilterChange({ ...filters, priorities: [] });
+                }
+              }}
               type="button"
             >
               <span>{item.label}</span>
@@ -2994,6 +3033,7 @@ function PeopleView({
             const extraTopicCount = Math.max(person.researchTopics.length - visibleTopics.length, 0);
             const priority = normalizePriority(person.priority);
             const assessment = displayAssessment(person.shortAssessment);
+            const progressText = person.nextAction.trim();
 
             return (
               <article className={editing ? "person-list-card editing" : "person-list-card"} key={person.id}>
@@ -3006,7 +3046,7 @@ function PeopleView({
                         {person.title || roleLabels[person.role] || person.role}
                         {person.institution ? ` · ${person.institution}` : ""}
                       </span>
-                      <em>{person.lab || "实验室待补充"}</em>
+                      {person.lab && <em>{person.lab}</em>}
                       {person.archived && <small>已归档</small>}
                     </div>
                   </div>
@@ -3022,7 +3062,6 @@ function PeopleView({
                   </div>
 
                   <div className="assessment-cell">
-                    <span>Eric 判断</span>
                     {assessment ? (
                       <p>{assessment}</p>
                     ) : (
@@ -3035,6 +3074,20 @@ function PeopleView({
                         + 添加简短判断
                       </button>
                     )}
+                    {progressText ? (
+                      <div className="person-progress-line">
+                        <span>当前进展</span>
+                        <em>{progressText}</em>
+                      </div>
+                    ) : canEdit ? (
+                      <button
+                        className="link-button subtle-link progress-add-button"
+                        onClick={() => startCardEdit(person, "progress")}
+                        type="button"
+                      >
+                        + 添加当前进展
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="priority-cell">
@@ -3057,7 +3110,7 @@ function PeopleView({
                       </button>
                     )}
                     <details className="person-more-menu">
-                      <summary>更多</summary>
+                      <summary aria-label={`更多操作 ${person.name}`}>···</summary>
                       <div>
                         <button disabled={!canEdit} onClick={() => startCardEdit(person, "basic")} type="button">
                           编辑基础信息
@@ -3070,6 +3123,9 @@ function PeopleView({
                         </button>
                         <button disabled={!canEdit} onClick={() => startCardEdit(person, "avatar")} type="button">
                           更换头像
+                        </button>
+                        <button disabled={!canEdit} onClick={() => startCardEdit(person, "progress")} type="button">
+                          编辑当前进展
                         </button>
                         <button disabled={!canEdit} onClick={() => onArchive(person, true)} type="button">
                           归档
@@ -3100,6 +3156,7 @@ function PeopleView({
                         <Field label="当前身份" value={cardDraft.title} onChange={(value) => updateCardDraft("title", value)} />
                         <Field label="学校 / 机构" value={cardDraft.institution} onChange={(value) => updateCardDraft("institution", value)} />
                         <Field label="实验室 / 团队" value={cardDraft.lab} onChange={(value) => updateCardDraft("lab", value)} />
+                        <Field label="当前进展（一句话）" value={cardDraft.nextAction} onChange={(value) => updateCardDraft("nextAction", value.slice(0, 120))} />
                         <AvatarUploader
                           avatarUrl={cardDraft.avatarUrl}
                           disabled={!canEdit}
@@ -3114,7 +3171,7 @@ function PeopleView({
                           onChange={(value) => updateCardDraft("researchTopics", splitList(value))}
                         />
                         <label className="field-label inline-editor-wide">
-                          Eric 简短判断
+                          简短判断
                           <textarea
                             maxLength={150}
                             onChange={(event) => updateCardDraft("shortAssessment", event.target.value)}
@@ -3153,7 +3210,7 @@ function PeopleView({
 
                     {editMode === "assessment" && (
                       <label className="field-label inline-editor-wide">
-                        Eric 简短判断
+                        简短判断
                         <textarea
                           autoFocus
                           maxLength={150}
@@ -3162,6 +3219,14 @@ function PeopleView({
                           value={cardDraft.shortAssessment}
                         />
                       </label>
+                    )}
+
+                    {editMode === "progress" && (
+                      <Field
+                        label="当前进展（一句话）"
+                        value={cardDraft.nextAction}
+                        onChange={(value) => updateCardDraft("nextAction", value.slice(0, 120))}
+                      />
                     )}
 
                     {editMode === "doc" && (
@@ -3404,13 +3469,18 @@ function PersonForm({
               value={draft.researchTopics.join("; ")}
               onChange={(value) => update("researchTopics", splitList(value))}
             />
+            <Field
+              label="当前进展（一句话）"
+              value={draft.nextAction}
+              onChange={(value) => update("nextAction", value.slice(0, 120))}
+            />
           </div>
         </section>
 
         <section className="form-section">
           <h2>2. 简短判断与优先级</h2>
           <label className="field-label full-field">
-            Eric 简短判断
+            简短判断
             <textarea
               maxLength={150}
               onChange={(event) => update("shortAssessment", event.target.value)}

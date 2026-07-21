@@ -1,5 +1,16 @@
 import { seedDashboardBrief } from "./seed-data";
 import { requireSupabaseConfig } from "./supabase-config";
+import {
+  formatDate,
+  formatStamp,
+  nowStamp,
+  todayDate,
+  toSupabaseTimestamp,
+} from "./time";
+import {
+  buildPersonCreatedUpdate,
+  buildPersonPatchedUpdate,
+} from "./work-update-builder";
 import type {
   ActivityLog,
   ContactStatus,
@@ -59,18 +70,6 @@ const validUpdateTypes: UpdateType[] = [
   "手动记录",
 ];
 
-function nowStamp() {
-  const date = new Date();
-  const pad = (value: number) => `${value}`.padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function todayDate() {
-  return nowStamp().slice(0, 10);
-}
-
 function normalizePriority(value = ""): Priority {
   if (/核心|高/.test(value)) return "高";
   if (/中/.test(value)) return "中";
@@ -82,10 +81,6 @@ function normalizeUpdateType(value = ""): UpdateType {
   return validUpdateTypes.includes(value as UpdateType)
     ? (value as UpdateType)
     : "手动记录";
-}
-
-function sameText(left = "", right = "") {
-  return left.trim() === right.trim();
 }
 
 function sortNextSteps(steps: NextStep[]) {
@@ -122,27 +117,6 @@ function asStringArray(value: unknown): string[] {
 
 function asJsonArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
-}
-
-function formatDate(value: unknown, fallback = "") {
-  if (!value) return fallback;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return fallback;
-  return date.toISOString().slice(0, 10);
-}
-
-function formatStamp(value: unknown, fallback = "") {
-  if (!value) return fallback;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)) {
-    return value.slice(0, 16);
-  }
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return fallback;
-  const pad = (part: number) => `${part}`.padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function splitList(value: string) {
@@ -335,7 +309,7 @@ function personToRow(person: Partial<Person>, user: CurrentUser, includeId = fal
     sources: person.sources ?? [],
     archived: Boolean(person.archived),
     last_modified_by: user.name,
-    last_modified_at: nowStamp(),
+    last_modified_at: toSupabaseTimestamp(person.lastModifiedAt || nowStamp()),
     last_verified_at: person.lastVerifiedAt || todayDate(),
   };
 
@@ -378,7 +352,7 @@ function updateToRow(update: Partial<WorkUpdate>, user: CurrentUser) {
     linked_organization: update.linkedOrganization?.trim() || "",
     feishu_url: update.feishuUrl?.trim() || "",
     author_name: update.author?.trim() || user.name,
-    occurred_at: update.occurredAt || nowStamp(),
+    occurred_at: toSupabaseTimestamp(update.occurredAt || nowStamp()),
   };
 }
 
@@ -432,7 +406,6 @@ export async function getPerson(id: string) {
 
 export async function createPerson(person: Person, user: CurrentUser) {
   const stamp = nowStamp();
-  const existingLabs = new Set((await listPeople()).map((item) => item.lab).filter(Boolean));
   const row = personToRow(
     {
       ...person,
@@ -463,63 +436,7 @@ export async function createPerson(person: Person, user: CurrentUser) {
     summary: `${user.name} 新增了 ${saved.name}。`,
   });
 
-  await appendUpdate({
-    updateType: "新增人员",
-    title: `新增人员：${saved.name}`,
-    summary: `${saved.title || saved.role} · ${saved.institution || "机构待补充"} · ${saved.lab || "实验室待补充"}`,
-    insight: saved.shortAssessment,
-    linkedPersonId: saved.id,
-    linkedPerson: saved.name,
-    linkedOrganization: saved.lab || saved.institution,
-    feishuUrl: saved.feishuDocUrl,
-    author: user.name,
-    occurredAt: stamp,
-  });
-
-  if (saved.lab && !existingLabs.has(saved.lab)) {
-    await appendUpdate({
-      updateType: "新增实验室",
-      title: `新增实验室：${saved.lab}`,
-      summary: `通过 ${saved.name} 新增 ${saved.lab} 作为后续跟踪组织。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (saved.feishuDocUrl) {
-    await appendUpdate({
-      updateType: "新增资料",
-      title: `新增人物资料：${saved.name}`,
-      summary: `补充 ${saved.name} 的飞书人物资料入口。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (saved.shortAssessment) {
-    await appendUpdate({
-      updateType: "新增研究判断",
-      title: `形成判断：${saved.name}`,
-      summary: `补充 ${saved.name} 的 Eric 简短判断。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
+  await appendUpdate(buildPersonCreatedUpdate(saved, { author: user.name, occurredAt: stamp }));
 
   return saved;
 }
@@ -531,6 +448,7 @@ export async function patchPerson(
 ) {
   const current = await getPerson(id);
   if (!current) return null;
+  const stamp = nowStamp();
 
   const existingLabs = new Set(
     (await listPeople())
@@ -548,7 +466,7 @@ export async function patchPerson(
         ? payload.patch.shortAssessment.trim().slice(0, 150)
         : current.shortAssessment,
     lastModifiedBy: user.name,
-    lastModifiedAt: nowStamp(),
+    lastModifiedAt: stamp,
     updatedAt: todayDate(),
   };
 
@@ -576,64 +494,13 @@ export async function patchPerson(
     after: payload.after,
   });
 
-  if (!sameText(current.priority, saved.priority)) {
-    await appendUpdate({
-      updateType: "调整优先级",
-      title: `调整优先级：${saved.name}`,
-      summary: `${saved.name} 从「${normalizePriority(current.priority)}」调整为「${normalizePriority(saved.priority)}」。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: nowStamp(),
-    });
-  }
-
-  if (!sameText(current.shortAssessment, saved.shortAssessment) && saved.shortAssessment) {
-    await appendUpdate({
-      updateType: "新增研究判断",
-      title: `更新判断：${saved.name}`,
-      summary: `更新 ${saved.name} 的 Eric 简短判断。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: nowStamp(),
-    });
-  }
-
-  if (!sameText(current.feishuDocUrl, saved.feishuDocUrl) && saved.feishuDocUrl) {
-    await appendUpdate({
-      updateType: "新增资料",
-      title: `新增资料：${saved.name}`,
-      summary: `补充或更新 ${saved.name} 的飞书人物资料链接。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: nowStamp(),
-    });
-  }
-
-  if (!sameText(current.lab, saved.lab) && saved.lab && !existingLabs.has(saved.lab)) {
-    await appendUpdate({
-      updateType: "新增实验室",
-      title: `新增实验室：${saved.lab}`,
-      summary: `通过 ${saved.name} 新增 ${saved.lab} 作为后续跟踪组织。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: nowStamp(),
-    });
+  const autoUpdate = buildPersonPatchedUpdate(current, saved, {
+    author: user.name,
+    labIsNew: Boolean(saved.lab && !existingLabs.has(saved.lab)),
+    occurredAt: stamp,
+  });
+  if (autoUpdate) {
+    await appendUpdate(autoUpdate);
   }
 
   return saved;
@@ -714,7 +581,7 @@ export async function patchDashboardBrief(
     focus_areas: Array.isArray(patch.focusAreas)
       ? patch.focusAreas.map((area) => area.trim()).filter(Boolean)
       : current.focusAreas,
-    updated_at: nowStamp(),
+    updated_at: toSupabaseTimestamp(nowStamp()),
     updated_by: user.name,
   };
 
@@ -801,7 +668,7 @@ export async function patchNextStep(
           Number.isFinite(payload.step.sortOrder)
             ? payload.step.sortOrder
             : current.sortOrder,
-        updated_at: nowStamp(),
+        updated_at: toSupabaseTimestamp(nowStamp()),
       }),
     },
   );
@@ -843,11 +710,11 @@ export async function listUpdates(filters: UpdateFilters = {}) {
   params.set("order", "occurred_at.desc");
   if (filters.updateType) params.set("update_type", `eq.${filters.updateType}`);
   if (filters.date) {
-    params.set("occurred_at", `gte.${filters.date} 00:00:00`);
-    params.append("occurred_at", `lte.${filters.date} 23:59:59`);
+    params.set("occurred_at", `gte.${toSupabaseTimestamp(`${filters.date} 00:00`)}`);
+    params.append("occurred_at", `lte.${toSupabaseTimestamp(`${filters.date} 23:59`)}`);
   }
-  if (filters.from) params.set("occurred_at", `gte.${filters.from} 00:00:00`);
-  if (filters.to) params.append("occurred_at", `lte.${filters.to} 23:59:59`);
+  if (filters.from) params.set("occurred_at", `gte.${toSupabaseTimestamp(`${filters.from} 00:00`)}`);
+  if (filters.to) params.append("occurred_at", `lte.${toSupabaseTimestamp(`${filters.to} 23:59`)}`);
   if (filters.person) params.set("linked_person", `ilike.*${filters.person}*`);
   if (filters.organization) {
     params.set("linked_organization", `ilike.*${filters.organization}*`);
@@ -901,7 +768,7 @@ export async function patchUpdate(
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         ...updateToRow({ ...current, ...payload.update }, user),
-        updated_at: nowStamp(),
+        updated_at: toSupabaseTimestamp(nowStamp()),
       }),
     },
   );
@@ -930,6 +797,8 @@ export async function deleteUpdate(id: string, user: CurrentUser) {
     targetType: "system",
     targetId: id,
     summary: `${user.name} 删除了工作动态：${current.title}。`,
+  }).catch((error) => {
+    console.warn("Failed to write delete update activity log", error);
   });
   return current;
 }

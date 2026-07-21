@@ -37,9 +37,18 @@ export async function DELETE(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const user = await requireApiUser(request, "write");
   if (user instanceof Response) return user;
-  const update = await deleteUpdate(id, user);
-  if (!update) {
-    return Response.json({ error: "工作动态不存在" }, { status: 404 });
+  try {
+    const update = await deleteUpdate(id, user);
+    if (!update) {
+      return Response.json({ error: "工作动态不存在" }, { status: 404 });
+    }
+    return Response.json({ update });
+  } catch (error) {
+    return Response.json(
+      {
+        error: error instanceof Error ? error.message : "工作记录删除失败",
+      },
+      { status: 500 },
+    );
   }
-  return Response.json({ update });
 }

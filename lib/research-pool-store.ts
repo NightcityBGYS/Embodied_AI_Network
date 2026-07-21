@@ -1,4 +1,9 @@
 import { seedResearchPoolState } from "./seed-data";
+import { nowStamp, todayDate } from "./time";
+import {
+  buildPersonCreatedUpdate,
+  buildPersonPatchedUpdate,
+} from "./work-update-builder";
 import type {
   ActivityLog,
   ContactStatus,
@@ -55,18 +60,6 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-function nowStamp() {
-  const date = new Date();
-  const pad = (value: number) => `${value}`.padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function todayDate() {
-  return nowStamp().slice(0, 10);
-}
-
 function slugify(value: string) {
   return (
     value
@@ -113,10 +106,6 @@ function normalizeUpdateType(value = ""): UpdateType {
 
 function updateDate(value: string) {
   return value.slice(0, 10);
-}
-
-function sameText(left = "", right = "") {
-  return left.trim() === right.trim();
 }
 
 function sortNextSteps(steps: NextStep[]) {
@@ -211,9 +200,6 @@ export function createPerson(person: Person, user: CurrentUser) {
   const stamp = nowStamp();
   const date = stamp.slice(0, 10);
   const id = person.id || slugify(person.name);
-  const existingLabs = new Set(
-    state.people.map((item) => item.lab.trim()).filter(Boolean),
-  );
   const saved: Person = {
     ...person,
     id,
@@ -242,63 +228,7 @@ export function createPerson(person: Person, user: CurrentUser) {
     summary: `${user.name} 新增了 ${saved.name}。`,
   });
 
-  appendUpdate({
-    updateType: "新增人员",
-    title: `新增人员：${saved.name}`,
-    summary: `${saved.title || saved.role} · ${saved.institution || "机构待补充"} · ${saved.lab || "实验室待补充"}`,
-    insight: saved.shortAssessment,
-    linkedPersonId: saved.id,
-    linkedPerson: saved.name,
-    linkedOrganization: saved.lab || saved.institution,
-    feishuUrl: saved.feishuDocUrl,
-    author: user.name,
-    occurredAt: stamp,
-  });
-
-  if (saved.lab && !existingLabs.has(saved.lab)) {
-    appendUpdate({
-      updateType: "新增实验室",
-      title: `新增实验室：${saved.lab}`,
-      summary: `通过 ${saved.name} 新增 ${saved.lab} 作为后续跟踪组织。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (saved.feishuDocUrl) {
-    appendUpdate({
-      updateType: "新增资料",
-      title: `新增人物资料：${saved.name}`,
-      summary: `补充 ${saved.name} 的飞书人物资料入口。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (saved.shortAssessment && !saved.shortAssessment.includes("待补充")) {
-    appendUpdate({
-      updateType: "新增研究判断",
-      title: `形成判断：${saved.name}`,
-      summary: `补充 ${saved.name} 的 Eric 简短判断。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
+  appendUpdate(buildPersonCreatedUpdate(saved, { author: user.name, occurredAt: stamp }));
   return clone(saved);
 }
 
@@ -342,101 +272,13 @@ export function patchPerson(id: string, payload: PersonPatchPayload, user: Curre
     after: payload.after,
   });
 
-  if (!sameText(current.priority, saved.priority)) {
-    appendUpdate({
-      updateType: "调整优先级",
-      title: `调整优先级：${saved.name}`,
-      summary: `${saved.name} 从「${normalizePriority(current.priority)}」调整为「${normalizePriority(saved.priority)}」。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (!sameText(current.shortAssessment, saved.shortAssessment) && saved.shortAssessment) {
-    appendUpdate({
-      updateType: "新增研究判断",
-      title: `更新判断：${saved.name}`,
-      summary: `更新 ${saved.name} 的 Eric 简短判断。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (!sameText(current.feishuDocUrl, saved.feishuDocUrl) && saved.feishuDocUrl) {
-    appendUpdate({
-      updateType: "新增资料",
-      title: `新增资料：${saved.name}`,
-      summary: `补充或更新 ${saved.name} 的飞书人物资料链接。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (!sameText(current.lab, saved.lab) && saved.lab && !existingLabs.has(saved.lab)) {
-    appendUpdate({
-      updateType: "新增实验室",
-      title: `新增实验室：${saved.lab}`,
-      summary: `通过 ${saved.name} 新增 ${saved.lab} 作为后续跟踪组织。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (
-    !sameText(current.researchStatus, saved.researchStatus) &&
-    saved.researchStatus.includes("调研完成")
-  ) {
-    appendUpdate({
-      updateType: "完成人物调研",
-      title: `完成人物调研：${saved.name}`,
-      summary: `完成 ${saved.name} 的人物调研并沉淀到飞书资料。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-  }
-
-  if (
-    (!sameText(current.researchStatus, saved.researchStatus) &&
-      saved.researchStatus.includes("已核验")) ||
-    (!sameText(current.lastVerifiedAt, saved.lastVerifiedAt) && Boolean(saved.lastVerifiedAt))
-  ) {
-    appendUpdate({
-      updateType: "完成信息核验",
-      title: `完成信息核验：${saved.name}`,
-      summary: `核验 ${saved.name} 的公开身份、机构或资料来源。`,
-      insight: saved.shortAssessment,
-      linkedPersonId: saved.id,
-      linkedPerson: saved.name,
-      linkedOrganization: saved.lab || saved.institution,
-      feishuUrl: saved.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
+  const autoUpdate = buildPersonPatchedUpdate(current, saved, {
+    author: user.name,
+    labIsNew: Boolean(saved.lab && !existingLabs.has(saved.lab)),
+    occurredAt: stamp,
+  });
+  if (autoUpdate) {
+    appendUpdate(autoUpdate);
   }
   return clone(saved);
 }
@@ -716,9 +558,6 @@ export function deleteUpdate(id: string, user: CurrentUser) {
 export function importPeopleFromCsv(csv: string, user: CurrentUser) {
   const records = parseCsv(csv);
   const stamp = nowStamp();
-  const existingLabs = new Set(
-    state.people.map((person) => person.lab.trim()).filter(Boolean),
-  );
   const imported = records
     .filter((record) => record.name)
     .map((record) => {
@@ -791,34 +630,7 @@ export function importPeopleFromCsv(csv: string, user: CurrentUser) {
   });
 
   imported.forEach((person) => {
-    appendUpdate({
-      updateType: "新增人员",
-      title: `新增人员：${person.name}`,
-      summary: `${person.title || person.role} · ${person.institution || "机构待补充"} · ${person.lab || "实验室待补充"}`,
-      insight: person.shortAssessment,
-      linkedPersonId: person.id,
-      linkedPerson: person.name,
-      linkedOrganization: person.lab || person.institution,
-      feishuUrl: person.feishuDocUrl,
-      author: user.name,
-      occurredAt: stamp,
-    });
-
-    if (person.lab && !existingLabs.has(person.lab)) {
-      existingLabs.add(person.lab);
-      appendUpdate({
-        updateType: "新增实验室",
-        title: `新增实验室：${person.lab}`,
-        summary: `通过 CSV 导入新增 ${person.lab}。`,
-        insight: person.shortAssessment,
-        linkedPersonId: person.id,
-        linkedPerson: person.name,
-        linkedOrganization: person.lab,
-        feishuUrl: person.feishuDocUrl,
-        author: user.name,
-        occurredAt: stamp,
-      });
-    }
+    appendUpdate(buildPersonCreatedUpdate(person, { author: user.name, occurredAt: stamp }));
   });
   return clone(imported);
 }
