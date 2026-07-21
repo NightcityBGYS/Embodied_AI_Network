@@ -1,5 +1,7 @@
 # 具身智能科研对象池工作台
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/NightcityBGYS/Embodied_AI_Network)
+
 这是一个面向内部团队的具身智能科研对象池工作台，用于维护北美具身智能、机器人和 Physical AI 领域的人员名单、Eric 简短判断、优先级和飞书人物资料入口。
 
 当前产品定位是 **经过人工筛选和分析的重点人员名单**。详细调研内容统一保存在飞书文档中，网页只保存对应人员的飞书文档链接。
