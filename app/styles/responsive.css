@@ -1,0 +1,210 @@
+@media (max-width: 1180px) {
+  .stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .directory-hero {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+	  .dashboard-hero,
+	  .priority-board,
+	  .dashboard-two-col,
+	  .brief-hero,
+	  .brief-main-grid,
+		  .brief-summary-bar,
+		  .update-filter-row,
+		  .issue-card,
+		  .organization-grid,
+		  .person-list-main {
+		    grid-template-columns: 1fr;
+		  }
+
+  .brief-summary-bar div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid,
+  .detail-grid,
+  .directory-layout,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav,
+  .filters-panel {
+    height: auto;
+    max-height: none;
+    position: static;
+  }
+
+  .side-nav {
+    border-bottom: 1px solid var(--line);
+    border-right: 0;
+    flex-direction: row;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  .page-heading,
+  .detail-header,
+  .person-card,
+  .login-layout {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    position: static;
+  }
+
+  .content-area,
+  .login-layout {
+    padding: 16px;
+  }
+
+  .workspace {
+    min-height: auto;
+  }
+
+  .brief-hero .button-row,
+  .directory-toolbar .button-row {
+    width: 100%;
+  }
+
+  .brief-hero .button,
+  .directory-toolbar .button {
+    flex: 1;
+  }
+
+		  .directory-toolbar,
+		  .compact-stats,
+		  .organization-metrics,
+		  .progress-strip,
+	  .pool-summary,
+	  .attention-grid,
+	  .filter-grid,
+	  .person-inline-editor {
+	    grid-template-columns: 1fr;
+	  }
+
+  .directory-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .segmented-actions {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .timeline-item {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-item time {
+    justify-content: flex-start;
+    width: fit-content;
+  }
+
+  .directory-toolbar .button-row {
+    align-items: stretch;
+  }
+
+  .directory-toolbar .button-row .button {
+    justify-content: center;
+  }
+
+  .stat-grid,
+  .form-grid,
+  .command-row,
+  .info-grid,
+  .detail-columns,
+  .assessment-grid,
+  .link-list,
+  .org-grid,
+  .status-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .card-actions {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .person-workflow {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .person-workflow .status-line {
+    justify-content: flex-start;
+  }
+
+  .person-workflow p {
+    text-align: left;
+  }
+
+	  .topbar-actions {
+	    justify-content: flex-start;
+	  }
+
+	  .issue-actions,
+	  .row-action-group {
+	    justify-content: flex-start;
+	  }
+
+	  .person-list-actions {
+	    justify-content: flex-start;
+	  }
+
+	  .person-drawer {
+	    width: 100%;
+	  }
+
+	  .person-drawer.update-drawer {
+	    width: 100%;
+	  }
+
+  .drawer-header h2 {
+    font-size: 22px;
+  }
+
+  .drawer-form,
+  .next-step-editor-list {
+    padding: 14px 16px;
+  }
+
+  .drawer-actions {
+    padding: 12px 16px;
+  }
+	}
+
+@media (max-width: 460px) {
+  .directory-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions,
+  .button-row {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .topbar-actions > *,
+  .button-row > * {
+    justify-content: center;
+  }
+}
