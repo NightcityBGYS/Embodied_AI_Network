@@ -10,6 +10,9 @@ import {
 import {
   buildPersonCreatedUpdate,
   buildPersonPatchedUpdate,
+  mergeAutoUpdate,
+  shouldMergeAutoUpdate,
+  type AutoUpdate,
 } from "./work-update-builder";
 import type {
   ActivityLog,
@@ -71,6 +74,7 @@ const validUpdateTypes: UpdateType[] = [
   "完成信息核验",
   "新增实验室",
   "新增资料",
+  "更新人物资料",
   "新增研究判断",
   "调整优先级",
   "手动记录",
@@ -537,7 +541,7 @@ export async function patchPerson(
     occurredAt: stamp,
   });
   if (autoUpdate) {
-    await appendUpdate(autoUpdate);
+    await appendUpdate(autoUpdate, { mergeSimilar: true });
   }
 
   return saved;
@@ -1011,8 +1015,37 @@ async function organizationSourceCounts() {
 }
 
 async function appendUpdate(
-  update: Omit<WorkUpdate, "id" | "createdAt" | "updatedAt">,
+  update: AutoUpdate,
+  options: { mergeSimilar?: boolean } = {},
 ) {
+  if (options.mergeSimilar) {
+    const params = new URLSearchParams();
+    params.set("select", "*");
+    params.set("order", "occurred_at.desc");
+    params.set("limit", "20");
+    if (update.author) params.set("author_name", `eq.${update.author}`);
+    const recentRows = await supabaseFetch<UpdateRow[]>(`/updates?${params.toString()}`);
+    const target = recentRows.map(updateFromRow).find((existing) =>
+      shouldMergeAutoUpdate(existing, update),
+    );
+
+    if (target) {
+      const merged = mergeAutoUpdate(target, update, nowStamp());
+      const rows = await supabaseFetch<UpdateRow[]>(
+        `/updates?id=eq.${encodeURIComponent(target.id)}&select=*`,
+        {
+          method: "PATCH",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            ...updateToRow(merged, { name: merged.author, role: "Admin" }),
+            updated_at: toSupabaseTimestamp(merged.updatedAt),
+          }),
+        },
+      );
+      return updateFromRow(rows[0]);
+    }
+  }
+
   const rows = await supabaseFetch<UpdateRow[]>("/updates?select=*", {
     method: "POST",
     headers: { Prefer: "return=representation" },

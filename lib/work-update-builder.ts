@@ -1,6 +1,6 @@
 import type { Person, UpdateType, WorkUpdate } from "./research-pool-types";
 
-type AutoUpdate = Omit<WorkUpdate, "id" | "createdAt" | "updatedAt">;
+export type AutoUpdate = Omit<WorkUpdate, "id" | "createdAt" | "updatedAt">;
 
 type BuildContext = {
   author: string;
@@ -11,17 +11,12 @@ type PatchContext = BuildContext & {
   labIsNew: boolean;
 };
 
-function normalizePriority(value = "") {
-  const trimmed = value.trim().toUpperCase();
-  if (trimmed === "S" || /核心|高优先|高$/.test(value)) return "S";
-  if (trimmed === "A" || /中高/.test(value)) return "A";
-  if (trimmed === "B" || /中低|中/.test(value)) return "B";
-  if (trimmed === "C" || /低|暂不|未评估/.test(value)) return "C";
-  return "C";
-}
-
 function sameText(left = "", right = "") {
   return left.trim() === right.trim();
+}
+
+function meaningfulProgressSummary(person: Person, fallback: string) {
+  return person.nextAction.trim() || fallback;
 }
 
 function baseUpdate(
@@ -65,60 +60,134 @@ export function buildPersonPatchedUpdate(
   after: Person,
   context: PatchContext,
 ): AutoUpdate | null {
-  const changes: string[] = [];
-  let updateType: UpdateType | "" = "";
-  let title = `更新人员：${after.name}`;
-  let insight = "";
-
-  const beforePriority = normalizePriority(before.priority);
-  const afterPriority = normalizePriority(after.priority);
-  if (beforePriority !== afterPriority) {
-    changes.push(`优先级从「${beforePriority}」调整为「${afterPriority}」`);
-    updateType ||= "调整优先级";
-    title = `调整优先级：${after.name}`;
-  }
-
   if (!sameText(before.shortAssessment, after.shortAssessment) && after.shortAssessment.trim()) {
-    changes.push("更新简短判断");
-    updateType = "新增研究判断";
-    title = `更新判断：${after.name}`;
-    insight = after.shortAssessment.trim();
+    return baseUpdate(
+      after,
+      context,
+      "新增研究判断",
+      `形成判断：${after.name}`,
+      "更新了简短判断，可作为当前推荐理由。",
+      after.shortAssessment.trim(),
+    );
   }
 
   if (!sameText(before.feishuDocUrl, after.feishuDocUrl) && after.feishuDocUrl.trim()) {
-    changes.push("更新飞书人物资料链接");
-    updateType ||= "新增资料";
-    title = `更新人物资料：${after.name}`;
+    return baseUpdate(
+      after,
+      context,
+      "新增资料",
+      `更新人物资料：${after.name}`,
+      "补充或更新飞书人物资料入口。",
+      after.shortAssessment.trim(),
+    );
   }
 
   if (!sameText(before.lab, after.lab) && after.lab.trim() && context.labIsNew) {
-    changes.push(`补充新实验室：${after.lab.trim()}`);
-    updateType ||= "新增实验室";
-    title = `补充实验室：${after.lab.trim()}`;
+    return baseUpdate(
+      after,
+      context,
+      "新增实验室",
+      `补充实验室线索：${after.lab.trim()}`,
+      `通过 ${after.name} 补充 ${after.lab.trim()} 作为后续跟踪组织。`,
+      after.shortAssessment.trim(),
+    );
   }
 
   if (
     !sameText(before.researchStatus, after.researchStatus) &&
     /已访谈|已结束/.test(after.researchStatus)
   ) {
-    changes.push("完成人物调研");
-    updateType ||= "完成人物调研";
-    title = `完成人物调研：${after.name}`;
+    return baseUpdate(
+      after,
+      context,
+      "完成人物调研",
+      `完成人物调研：${after.name}`,
+      meaningfulProgressSummary(after, "已完成阶段性人物调研。"),
+      after.shortAssessment.trim(),
+    );
   }
 
-  if (
-    (!sameText(before.researchStatus, after.researchStatus) &&
-      /已联系|已回复|已预约|跟进中/.test(after.researchStatus)) ||
-    (!sameText(before.lastVerifiedAt, after.lastVerifiedAt) && Boolean(after.lastVerifiedAt))
-  ) {
-    changes.push("完成信息核验");
-    updateType ||= "完成信息核验";
-    title = `完成信息核验：${after.name}`;
+  if (!sameText(before.lastVerifiedAt, after.lastVerifiedAt) && Boolean(after.lastVerifiedAt)) {
+    return baseUpdate(
+      after,
+      context,
+      "完成信息核验",
+      `完成信息核验：${after.name}`,
+      meaningfulProgressSummary(after, "完成公开信息核验。"),
+      after.shortAssessment.trim(),
+    );
   }
 
-  if (!changes.length || !updateType) {
-    return null;
-  }
+  return null;
+}
 
-  return baseUpdate(after, context, updateType, title, `${changes.join("；")}。`, insight);
+const MERGEABLE_AUTO_UPDATE_TYPES = new Set<UpdateType>([
+  "完成信息核验",
+  "新增实验室",
+  "新增资料",
+  "更新人物资料",
+]);
+
+function updateTimestamp(value: string) {
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sameSubject(left: Pick<WorkUpdate, "linkedPersonId" | "linkedPerson">, right: AutoUpdate) {
+  if (left.linkedPersonId && right.linkedPersonId) {
+    return left.linkedPersonId === right.linkedPersonId;
+  }
+  return Boolean(left.linkedPerson && right.linkedPerson && left.linkedPerson === right.linkedPerson);
+}
+
+function uniqueSentences(...values: string[]) {
+  const seen = new Set<string>();
+  return values
+    .flatMap((value) =>
+      value
+        .replace(/\n+/g, "。")
+        .split("。")
+        .map((sentence) => sentence.trim())
+        .filter(Boolean),
+    )
+    .filter((sentence) => {
+      if (seen.has(sentence)) return false;
+      seen.add(sentence);
+      return true;
+    })
+    .join("。");
+}
+
+export function shouldMergeAutoUpdate(existing: WorkUpdate, incoming: AutoUpdate) {
+  if (!MERGEABLE_AUTO_UPDATE_TYPES.has(existing.updateType)) return false;
+  if (!MERGEABLE_AUTO_UPDATE_TYPES.has(incoming.updateType)) return false;
+  if (existing.author && incoming.author && existing.author !== incoming.author) return false;
+  if (!sameSubject(existing, incoming)) return false;
+
+  const existingTime = updateTimestamp(existing.occurredAt);
+  const incomingTime = updateTimestamp(incoming.occurredAt);
+  if (!existingTime || !incomingTime) return existing.occurredAt.slice(0, 10) === incoming.occurredAt.slice(0, 10);
+
+  return Math.abs(incomingTime - existingTime) <= 30 * 60 * 1000;
+}
+
+export function mergeAutoUpdate(existing: WorkUpdate, incoming: AutoUpdate, updatedAt: string): WorkUpdate {
+  const personName = incoming.linkedPerson || existing.linkedPerson;
+  const summary = uniqueSentences(existing.summary, incoming.summary);
+
+  return {
+    ...existing,
+    updateType: "更新人物资料",
+    title: personName ? `更新人物资料：${personName}` : incoming.title || existing.title,
+    summary: summary ? `${summary}。` : incoming.summary || existing.summary,
+    insight: incoming.insight || existing.insight,
+    linkedPersonId: incoming.linkedPersonId || existing.linkedPersonId,
+    linkedPerson: incoming.linkedPerson || existing.linkedPerson,
+    linkedOrganization: incoming.linkedOrganization || existing.linkedOrganization,
+    feishuUrl: incoming.feishuUrl || existing.feishuUrl,
+    author: incoming.author || existing.author,
+    occurredAt: incoming.occurredAt > existing.occurredAt ? incoming.occurredAt : existing.occurredAt,
+    updatedAt,
+  };
 }

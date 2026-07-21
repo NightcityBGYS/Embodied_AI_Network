@@ -191,6 +191,7 @@ const UPDATE_TYPES: UpdateType[] = [
   "完成信息核验",
   "新增实验室",
   "新增资料",
+  "更新人物资料",
   "新增研究判断",
   "调整优先级",
   "手动记录",
@@ -2710,6 +2711,7 @@ function compactUpdateSummary(updates: WorkUpdate[]) {
     完成信息核验: "核验信息",
     新增实验室: "新增实验室",
     新增资料: "新增资料",
+    更新人物资料: "资料更新",
     新增研究判断: "新增判断",
     调整优先级: "调整优先级",
     手动记录: "手动记录",
@@ -3396,7 +3398,7 @@ function PeopleView({
           <div>
             <p className="eyebrow">人员目录</p>
             <h1>科研对象名单</h1>
-            <p>看简短判断，调优先级，完整资料从飞书打开。</p>
+            <p>看人物身份、推荐理由和推进状态，完整资料从飞书打开。</p>
           </div>
           <div className="directory-metrics" aria-label="当前结果概览">
             <button
@@ -3473,7 +3475,7 @@ function PeopleView({
                 onChange={(event) =>
                   onFilterChange({ ...filters, search: event.target.value })
                 }
-                placeholder="搜索姓名、学校、实验室、研究方向或简短判断"
+                placeholder="搜索姓名、学校、实验室、研究方向、推荐理由或推进状态"
                 value={filters.search}
               />
             </div>

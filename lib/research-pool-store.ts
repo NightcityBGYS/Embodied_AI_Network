@@ -3,6 +3,9 @@ import { nowStamp, todayDate } from "./time";
 import {
   buildPersonCreatedUpdate,
   buildPersonPatchedUpdate,
+  mergeAutoUpdate,
+  shouldMergeAutoUpdate,
+  type AutoUpdate,
 } from "./work-update-builder";
 import type {
   ActivityLog,
@@ -106,6 +109,7 @@ function normalizeUpdateType(value = ""): UpdateType {
     "完成信息核验",
     "新增实验室",
     "新增资料",
+    "更新人物资料",
     "新增研究判断",
     "调整优先级",
     "手动记录",
@@ -384,7 +388,7 @@ export function patchPerson(id: string, payload: PersonPatchPayload, user: Curre
     occurredAt: stamp,
   });
   if (autoUpdate) {
-    appendUpdate(autoUpdate);
+    appendUpdate(autoUpdate, { mergeSimilar: true });
   }
   return clone(saved);
 }
@@ -801,8 +805,22 @@ function createEmptyPerson(user: CurrentUser): Person {
   };
 }
 
-function appendUpdate(update: Omit<WorkUpdate, "id" | "createdAt" | "updatedAt">) {
+function appendUpdate(
+  update: AutoUpdate,
+  options: { mergeSimilar?: boolean } = {},
+) {
   const stamp = nowStamp();
+  if (options.mergeSimilar) {
+    const target = state.updates.find((existing) => shouldMergeAutoUpdate(existing, update));
+    if (target) {
+      const merged = mergeAutoUpdate(target, update, stamp);
+      state.updates = state.updates
+        .map((existing) => (existing.id === target.id ? merged : existing))
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+      return merged;
+    }
+  }
+
   const saved: WorkUpdate = {
     ...update,
     id: `update-${Date.now()}-${Math.random().toString(16).slice(2)}`,
