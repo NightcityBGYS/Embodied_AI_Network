@@ -54,14 +54,7 @@ type Filters = {
 
 type BadgeTone = "neutral" | "strong" | "warning" | "success" | "danger" | "muted";
 
-type CommonPeopleView =
-  | "all"
-  | "high"
-  | "faculty"
-  | "doctoral"
-  | "master"
-  | "bu"
-  | "industry";
+type PeopleSortMode = "createdAt" | "name" | "priority";
 
 type CardEditMode = "basic" | "priority" | "doc" | "avatar" | "assessment" | "progress";
 
@@ -76,6 +69,7 @@ type PersonCardDraft = Pick<
   | "researchTopics"
   | "shortAssessment"
   | "nextAction"
+  | "researchStatus"
   | "priority"
   | "feishuDocUrl"
   | "supervisorNote"
@@ -149,7 +143,19 @@ const roleLabels: Record<string, string> = {
   Researcher: "研究人员",
 };
 
-const SIMPLE_PRIORITIES = ["高", "中", "低", "未评估"] as const;
+const SIMPLE_PRIORITIES = ["S", "A", "B", "C"] as const;
+const PROGRESS_STATUSES = [
+  "待调研",
+  "待联系",
+  "已联系",
+  "已回复",
+  "已预约",
+  "已访谈",
+  "跟进中",
+  "已结束",
+] as const;
+const SPECIAL_PROGRESS_STATUSES = ["长期维护", "暂停推进"] as const;
+const ALL_PROGRESS_STATUSES = [...PROGRESS_STATUSES, ...SPECIAL_PROGRESS_STATUSES] as const;
 const EMPTY_SAVE_STATE: SaveState = { error: "", saving: false, success: "" };
 const PUBLIC_SUPABASE_CONFIGURED = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -192,20 +198,35 @@ const EMPTY_UPDATE_FILTERS: UpdateFilters = {
 };
 
 function normalizePriority(value = "") {
-  if (/核心|高/.test(value)) {
-    return "高";
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed === "S" || /核心|高优先|高$/.test(value)) {
+    return "S";
   }
-  if (/中/.test(value)) {
-    return "中";
+  if (trimmed === "A" || /中高/.test(value)) {
+    return "A";
   }
-  if (/低|暂不/.test(value)) {
-    return "低";
+  if (trimmed === "B" || /中低|中/.test(value)) {
+    return "B";
   }
-  return "未评估";
+  if (trimmed === "C" || /低|暂不|未评估/.test(value)) {
+    return "C";
+  }
+  return "C";
 }
 
-function isHighPriority(person: Person) {
-  return normalizePriority(person.priority) === "高";
+function normalizeProgressStatus(value = "") {
+  const trimmed = value.trim();
+  if ((ALL_PROGRESS_STATUSES as readonly string[]).includes(trimmed)) {
+    return trimmed;
+  }
+  if (/调研完成|完成访谈/.test(trimmed)) return "已访谈";
+  if (/待收集|初步录入|待核验|详细调研中/.test(trimmed)) return "待调研";
+  if (/待上级|待批准|计划联系/.test(trimmed)) return "待联系";
+  if (/已约/.test(trimmed)) return "已预约";
+  if (/已关闭|信息过期/.test(trimmed)) return "已结束";
+  if (/暂不|暂停/.test(trimmed)) return "暂停推进";
+  if (/维护/.test(trimmed)) return "长期维护";
+  return "待调研";
 }
 
 function hasRealAssessment(value = "") {
@@ -226,28 +247,6 @@ function initials(name = "") {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
   return compact.slice(0, 2).toUpperCase();
-}
-
-function isFacultyRole(person: Person) {
-  return /Professor|Principal Investigator|PI|Research Professor/.test(
-    `${person.role} ${person.title}`,
-  );
-}
-
-function isDoctoralRole(person: Person) {
-  return /PhD|Postdoc|博士|博后/.test(`${person.role} ${person.title}`);
-}
-
-function isMasterRole(person: Person) {
-  return /Master|硕士/.test(`${person.role} ${person.title}`);
-}
-
-function isIndustryPerson(person: Person) {
-  return (
-    /Industry|Research Scientist|产业|公司|Company|Inc|Institute|Lab/i.test(
-      `${person.role} ${person.title} ${person.institution}`,
-    ) && !/University|Boston University/i.test(person.institution)
-  );
 }
 
 function unique(values: string[]) {
@@ -282,7 +281,7 @@ function normalizePerson(person: Person): Person {
   return {
     ...person,
     priority,
-    isStarred: priority === "高" && person.isStarred,
+    isStarred: priority === "S" && person.isStarred,
     contacts: person.contacts ?? [],
     feishuDocUrl: person.feishuDocUrl ?? "",
     shortAssessment,
@@ -329,13 +328,28 @@ function isRecentDays(dateValue: string, days: number) {
 }
 
 function statusTone(value: string): BadgeTone {
-  if (value === "高") {
+  if (value === "S") {
     return "warning";
   }
-  if (value === "中") {
+  if (value === "A") {
+    return "strong";
+  }
+  if (value === "B") {
     return "neutral";
   }
-  if (value === "低" || value === "未评估") {
+  if (value === "C") {
+    return "muted";
+  }
+  if (/已联系|已回复|已预约|已访谈/.test(value)) {
+    return "success";
+  }
+  if (/待联系|跟进中/.test(value)) {
+    return "warning";
+  }
+  if (/长期维护/.test(value)) {
+    return "strong";
+  }
+  if (/待调研|已结束|暂停推进/.test(value)) {
     return "muted";
   }
   if (/完成|已核验|已联系|已回复|已约/.test(value)) {
@@ -397,8 +411,8 @@ function initialPerson(
     networkValue: "",
     recommendedApproach: "",
     interviewQuestions: "",
-    researchStatus: "初步录入",
-    priority: "未评估",
+    researchStatus: "待调研",
+    priority: "C",
     contactStatus: "暂不联系",
     owner: currentUser.name,
     isStarred: false,
@@ -783,9 +797,12 @@ export function ResearchPoolApp({
         person.feishuDocUrl,
         person.supervisorNote,
         person.managerNote,
+        person.nextAction,
         person.researchMode,
         person.priority,
+        normalizePriority(person.priority),
         person.researchStatus,
+        normalizeProgressStatus(person.researchStatus),
         person.contactStatus,
         person.institution,
         person.lab,
@@ -811,9 +828,9 @@ export function ResearchPoolApp({
         );
       const matchesResearchStatus =
         !filters.researchStatuses.length ||
-        filters.researchStatuses.includes(person.researchStatus);
+        filters.researchStatuses.includes(normalizeProgressStatus(person.researchStatus));
       const matchesPriority =
-        !filters.priorities.length || filters.priorities.includes(person.priority);
+        !filters.priorities.length || filters.priorities.includes(normalizePriority(person.priority));
       const matchesContact =
         !filters.contactStatuses.length ||
         filters.contactStatuses.includes(person.contactStatus);
@@ -1350,6 +1367,7 @@ export function ResearchPoolApp({
 
             {view === "people" && (
               <PeopleView
+                allPeople={state.people}
                 canEdit={canEdit}
                 exportCsv={exportCsv}
                 filteredPeople={filteredPeople}
@@ -2548,6 +2566,7 @@ function draftFromUpdate(source?: Partial<WorkUpdate>): UpdateDraft {
 }
 
 function PeopleView({
+  allPeople,
   canEdit,
   exportCsv,
   filteredPeople,
@@ -2571,6 +2590,7 @@ function PeopleView({
   roleLabels: roleLabelMap,
   topics,
 }: {
+  allPeople: Person[];
   canEdit: boolean;
   exportCsv: () => void;
   filteredPeople: Person[];
@@ -2598,7 +2618,7 @@ function PeopleView({
   topics: string[];
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [commonView, setCommonView] = useState<CommonPeopleView>("all");
+  const [sortMode, setSortMode] = useState<PeopleSortMode>("createdAt");
   const [editingPersonId, setEditingPersonId] = useState("");
   const [editMode, setEditMode] = useState<CardEditMode>("basic");
   const [cardDraft, setCardDraft] = useState<PersonCardDraft>({
@@ -2611,6 +2631,7 @@ function PeopleView({
     researchTopics: [],
     shortAssessment: "",
     nextAction: "",
+    researchStatus: "待调研",
     priority: "",
     feishuDocUrl: "",
     supervisorNote: "",
@@ -2659,40 +2680,22 @@ function PeopleView({
     filters.topics.length +
     filters.priorities.length;
 
-  const priorityRank: Record<string, number> = {
-    高: 0,
-    中: 1,
-    低: 2,
-    未评估: 3,
-  };
+  const priorityRank: Record<string, number> = { S: 0, A: 1, B: 2, C: 3 };
   const sortedPeople = [...filteredPeople].sort((a, b) => {
-    return (
-      (priorityRank[normalizePriority(a.priority)] ?? 9) -
-        (priorityRank[normalizePriority(b.priority)] ?? 9) ||
-      a.name.localeCompare(b.name)
-    );
+    if (sortMode === "name") {
+      return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+    }
+    if (sortMode === "priority") {
+      return (
+        (priorityRank[normalizePriority(a.priority)] ?? 9) -
+          (priorityRank[normalizePriority(b.priority)] ?? 9) ||
+        b.createdAt.localeCompare(a.createdAt) ||
+        a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+      );
+    }
+    return b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name, "en", { sensitivity: "base" });
   });
-  const displayPeople = sortedPeople.filter((person) => {
-    if (commonView === "high") {
-      return isHighPriority(person);
-    }
-    if (commonView === "faculty") {
-      return isFacultyRole(person);
-    }
-    if (commonView === "doctoral") {
-      return isDoctoralRole(person);
-    }
-    if (commonView === "master") {
-      return isMasterRole(person);
-    }
-    if (commonView === "bu") {
-      return /Boston University|BU/.test(`${person.institution} ${person.tags.join(" ")}`);
-    }
-    if (commonView === "industry") {
-      return isIndustryPerson(person);
-    }
-    return true;
-  });
+  const displayPeople = sortedPeople;
 
   const activeFilterItems = [
     ...(filters.search.trim()
@@ -2719,53 +2722,33 @@ function PeopleView({
       : []),
   ];
 
-  const commonViews: Array<{
-    count: number;
-    key: CommonPeopleView;
+  const sortOptions: Array<{
+    key: PeopleSortMode;
     label: string;
+    note: string;
   }> = [
     {
-      count: filteredPeople.length,
-      key: "all",
-      label: "全部",
+      key: "createdAt",
+      label: "按添加时间",
+      note: "最近新增在前",
     },
     {
-      count: filteredPeople.filter(isHighPriority).length,
-      key: "high",
-      label: "高",
+      key: "name",
+      label: "按名字首字母",
+      note: "A-Z",
     },
     {
-      count: filteredPeople.filter(isFacultyRole).length,
-      key: "faculty",
-      label: "教授 / PI",
-    },
-    {
-      count: filteredPeople.filter(isDoctoralRole).length,
-      key: "doctoral",
-      label: "博士 / 博后",
-    },
-    {
-      count: filteredPeople.filter(isMasterRole).length,
-      key: "master",
-      label: "硕士",
-    },
-    {
-      count: filteredPeople.filter((person) =>
-        /Boston University|BU/.test(`${person.institution} ${person.tags.join(" ")}`),
-      ).length,
-      key: "bu",
-      label: "BU",
-    },
-    {
-      count: filteredPeople.filter(isIndustryPerson).length,
-      key: "industry",
-      label: "产业机构",
+      key: "priority",
+      label: "按优先级",
+      note: "S-A-B-C",
     },
   ];
 
-  const highCount = filteredPeople.filter((person) => normalizePriority(person.priority) === "高").length;
-  const mediumCount = filteredPeople.filter((person) => normalizePriority(person.priority) === "中").length;
-  const lowCount = filteredPeople.filter((person) => normalizePriority(person.priority) === "低").length;
+  const metricsPeople = allPeople.filter((person) => !person.archived);
+  const sCount = metricsPeople.filter((person) => normalizePriority(person.priority) === "S").length;
+  const aCount = metricsPeople.filter((person) => normalizePriority(person.priority) === "A").length;
+  const bCount = metricsPeople.filter((person) => normalizePriority(person.priority) === "B").length;
+  const cCount = metricsPeople.filter((person) => normalizePriority(person.priority) === "C").length;
 
   function startCardEdit(person: Person, mode: CardEditMode) {
     setEditingPersonId(person.id);
@@ -2780,6 +2763,7 @@ function PeopleView({
       researchTopics: person.researchTopics,
       shortAssessment: person.shortAssessment,
       nextAction: person.nextAction,
+      researchStatus: normalizeProgressStatus(person.researchStatus),
       priority: normalizePriority(person.priority),
       feishuDocUrl: person.feishuDocUrl,
       supervisorNote: person.supervisorNote,
@@ -2803,7 +2787,10 @@ function PeopleView({
           : editMode === "assessment"
             ? { shortAssessment: cardDraft.shortAssessment.trim().slice(0, 150) }
           : editMode === "progress"
-            ? { nextAction: cardDraft.nextAction.trim().slice(0, 120) }
+            ? {
+                researchStatus: normalizeProgressStatus(cardDraft.researchStatus),
+                nextAction: cardDraft.nextAction.trim().slice(0, 240),
+              }
           : editMode === "doc"
           ? {
               feishuDocUrl: cardDraft.feishuDocUrl.trim(),
@@ -2819,7 +2806,8 @@ function PeopleView({
               avatarUrl: cardDraft.avatarUrl.trim(),
               researchTopics: cardDraft.researchTopics.filter(Boolean),
               shortAssessment: cardDraft.shortAssessment.trim().slice(0, 150),
-              nextAction: cardDraft.nextAction.trim().slice(0, 120),
+              researchStatus: normalizeProgressStatus(cardDraft.researchStatus),
+              nextAction: cardDraft.nextAction.trim().slice(0, 240),
             };
 
     onQuickUpdate(
@@ -2858,58 +2846,68 @@ function PeopleView({
           </div>
           <div className="directory-metrics" aria-label="当前结果概览">
             <button
-              className={commonView === "all" && !filters.priorities.length ? "active" : ""}
+              className={!filters.priorities.length ? "active" : ""}
               onClick={() => {
-                setCommonView("all");
                 if (filters.priorities.length) {
                   onFilterChange({ ...filters, priorities: [] });
                 }
               }}
               type="button"
             >
-              <strong>{filteredPeople.length}</strong>
+              <strong>{metricsPeople.length}</strong>
               <small>总人数</small>
             </button>
             <button
-              className={commonView === "high" && !filters.priorities.length ? "active" : ""}
+              className={filters.priorities.includes("S") ? "active" : ""}
               onClick={() => {
-                setCommonView("high");
-                if (filters.priorities.length) {
-                  onFilterChange({ ...filters, priorities: [] });
-                }
-              }}
-              type="button"
-            >
-              <strong>{highCount}</strong>
-              <small>高</small>
-            </button>
-            <button
-              className={filters.priorities.includes("中") ? "active" : ""}
-              onClick={() => {
-                setCommonView("all");
                 onFilterChange({
                   ...filters,
-                  priorities: filters.priorities.includes("中") ? [] : ["中"],
+                  priorities: filters.priorities.includes("S") ? [] : ["S"],
                 });
               }}
               type="button"
             >
-              <strong>{mediumCount}</strong>
-              <small>中</small>
+              <strong>{sCount}</strong>
+              <small>S</small>
             </button>
             <button
-              className={filters.priorities.includes("低") ? "active" : ""}
+              className={filters.priorities.includes("A") ? "active" : ""}
               onClick={() => {
-                setCommonView("all");
                 onFilterChange({
                   ...filters,
-                  priorities: filters.priorities.includes("低") ? [] : ["低"],
+                  priorities: filters.priorities.includes("A") ? [] : ["A"],
                 });
               }}
               type="button"
             >
-              <strong>{lowCount}</strong>
-              <small>低</small>
+              <strong>{aCount}</strong>
+              <small>A</small>
+            </button>
+            <button
+              className={filters.priorities.includes("B") ? "active" : ""}
+              onClick={() => {
+                onFilterChange({
+                  ...filters,
+                  priorities: filters.priorities.includes("B") ? [] : ["B"],
+                });
+              }}
+              type="button"
+            >
+              <strong>{bCount}</strong>
+              <small>B</small>
+            </button>
+            <button
+              className={filters.priorities.includes("C") ? "active" : ""}
+              onClick={() => {
+                onFilterChange({
+                  ...filters,
+                  priorities: filters.priorities.includes("C") ? [] : ["C"],
+                });
+              }}
+              type="button"
+            >
+              <strong>{cCount}</strong>
+              <small>C</small>
             </button>
           </div>
         </div>
@@ -2949,22 +2947,19 @@ function PeopleView({
           </div>
         </div>
 
-        <div className="quick-filter-row" aria-label="常用视图">
-          <span className="quick-filter-label">快捷筛选</span>
-          {commonViews.map((item) => (
+        <div className="quick-filter-row" aria-label="排序方式">
+          <span className="quick-filter-label">排序</span>
+          {sortOptions.map((item) => (
             <button
-              className={commonView === item.key ? "quick-filter active" : "quick-filter"}
+              className={sortMode === item.key ? "quick-filter active" : "quick-filter"}
               key={item.label}
               onClick={() => {
-                setCommonView(commonView === item.key ? "all" : item.key);
-                if (filters.priorities.length) {
-                  onFilterChange({ ...filters, priorities: [] });
-                }
+                setSortMode(item.key);
               }}
               type="button"
             >
               <span>{item.label}</span>
-              <strong>{item.count}</strong>
+              <strong>{item.note}</strong>
             </button>
           ))}
         </div>
@@ -3031,9 +3026,11 @@ function PeopleView({
             const editing = editingPersonId === person.id;
             const visibleTopics = person.researchTopics.slice(0, 3);
             const extraTopicCount = Math.max(person.researchTopics.length - visibleTopics.length, 0);
+            const hiddenTopics = person.researchTopics.slice(visibleTopics.length);
             const priority = normalizePriority(person.priority);
             const assessment = displayAssessment(person.shortAssessment);
             const progressText = person.nextAction.trim();
+            const progressStatus = normalizeProgressStatus(person.researchStatus);
 
             return (
               <article className={editing ? "person-list-card editing" : "person-list-card"} key={person.id}>
@@ -3041,7 +3038,10 @@ function PeopleView({
                   <div className="person-list-identity">
                     <PersonAvatar name={person.name} url={person.avatarUrl} />
                     <div>
-                      <strong>{person.name}</strong>
+                      <div className="person-name-line">
+                        <Badge tone={statusTone(priority)}>{priority}</Badge>
+                        <strong>{person.name}</strong>
+                      </div>
                       <span>
                         {person.title || roleLabels[person.role] || person.role}
                         {person.institution ? ` · ${person.institution}` : ""}
@@ -3056,7 +3056,11 @@ function PeopleView({
                       {visibleTopics.map((topic) => (
                         <span key={topic}>{topic}</span>
                       ))}
-                      {extraTopicCount > 0 && <span>+{extraTopicCount}</span>}
+                      {extraTopicCount > 0 && (
+                        <span className="topic-more" title={hiddenTopics.join(" / ")}>
+                          +{extraTopicCount}
+                        </span>
+                      )}
                       {!visibleTopics.length && <em>未填写研究方向</em>}
                     </div>
                   </div>
@@ -3074,10 +3078,20 @@ function PeopleView({
                         + 添加简短判断
                       </button>
                     )}
-                    {progressText ? (
+                    {progressText || progressStatus ? (
                       <div className="person-progress-line">
-                        <span>当前进展</span>
-                        <em>{progressText}</em>
+                        <Badge tone={statusTone(progressStatus)}>{progressStatus}</Badge>
+                        {progressText ? (
+                          <em>{progressText}</em>
+                        ) : canEdit ? (
+                          <button
+                            className="link-button subtle-link progress-inline-add"
+                            onClick={() => startCardEdit(person, "progress")}
+                            type="button"
+                          >
+                            + 添加进展总结
+                          </button>
+                        ) : null}
                       </div>
                     ) : canEdit ? (
                       <button
@@ -3088,10 +3102,6 @@ function PeopleView({
                         + 添加当前进展
                       </button>
                     ) : null}
-                  </div>
-
-                  <div className="priority-cell">
-                    <Badge tone={statusTone(priority)}>{priority}</Badge>
                   </div>
 
                   <div className="person-list-actions">
@@ -3156,7 +3166,13 @@ function PeopleView({
                         <Field label="当前身份" value={cardDraft.title} onChange={(value) => updateCardDraft("title", value)} />
                         <Field label="学校 / 机构" value={cardDraft.institution} onChange={(value) => updateCardDraft("institution", value)} />
                         <Field label="实验室 / 团队" value={cardDraft.lab} onChange={(value) => updateCardDraft("lab", value)} />
-                        <Field label="当前进展（一句话）" value={cardDraft.nextAction} onChange={(value) => updateCardDraft("nextAction", value.slice(0, 120))} />
+                        <div className="inline-editor-wide progress-editor">
+                          <ProgressStatusPicker
+                            onChange={(value) => updateCardDraft("researchStatus", value)}
+                            value={cardDraft.researchStatus}
+                          />
+                          <Field label="当前进展总结" value={cardDraft.nextAction} onChange={(value) => updateCardDraft("nextAction", value.slice(0, 240))} />
+                        </div>
                         <AvatarUploader
                           avatarUrl={cardDraft.avatarUrl}
                           disabled={!canEdit}
@@ -3222,11 +3238,17 @@ function PeopleView({
                     )}
 
                     {editMode === "progress" && (
-                      <Field
-                        label="当前进展（一句话）"
-                        value={cardDraft.nextAction}
-                        onChange={(value) => updateCardDraft("nextAction", value.slice(0, 120))}
-                      />
+                      <div className="inline-editor-wide progress-editor">
+                        <ProgressStatusPicker
+                          onChange={(value) => updateCardDraft("researchStatus", value)}
+                          value={cardDraft.researchStatus}
+                        />
+                        <Field
+                          label="当前进展总结"
+                          value={cardDraft.nextAction}
+                          onChange={(value) => updateCardDraft("nextAction", value.slice(0, 240))}
+                        />
+                      </div>
                     )}
 
                     {editMode === "doc" && (
@@ -3282,7 +3304,7 @@ function PeopleView({
           <textarea
             onChange={(event) => onImportTextChange(event.target.value)}
             placeholder={
-              "name,role,title,institution,lab,research_topics,priority,short_assessment,feishu_doc_url,supervisor_note\n新人员,PhD Student,博士生,Boston University,H2X Lab,Embodied AI; VLA,高,此人方向贴近具身智能评测，建议先看代表项目和公开代码。,https://example.feishu.cn/docx/new,请上级确认是否纳入重点名单"
+              "name,role,title,institution,lab,research_topics,priority,short_assessment,feishu_doc_url,supervisor_note\n新人员,PhD Student,博士生,Boston University,H2X Lab,Embodied AI; VLA,S,此人方向贴近具身智能评测，建议先看代表项目和公开代码。,https://example.feishu.cn/docx/new,请上级确认是否纳入重点名单"
             }
             value={importText}
           />
@@ -3387,7 +3409,7 @@ function PersonForm({
         flags: draft.flags.filter(Boolean),
         tags: draft.tags.filter(Boolean),
         priority: normalizePriority(draft.priority),
-        researchStatus: draft.researchStatus.trim() || "初步录入",
+        researchStatus: normalizeProgressStatus(draft.researchStatus),
         contactStatus: draft.contactStatus.trim() || "暂不联系",
         owner: draft.owner.trim() || currentUser.name,
         nextAction: draft.nextAction.trim(),
@@ -3469,11 +3491,17 @@ function PersonForm({
               value={draft.researchTopics.join("; ")}
               onChange={(value) => update("researchTopics", splitList(value))}
             />
-            <Field
-              label="当前进展（一句话）"
-              value={draft.nextAction}
-              onChange={(value) => update("nextAction", value.slice(0, 120))}
-            />
+            <div className="full-field progress-editor">
+              <ProgressStatusPicker
+                onChange={(value) => update("researchStatus", value)}
+                value={draft.researchStatus}
+              />
+              <Field
+                label="当前进展总结"
+                value={draft.nextAction}
+                onChange={(value) => update("nextAction", value.slice(0, 240))}
+              />
+            </div>
           </div>
         </section>
 
@@ -3519,6 +3547,46 @@ function PersonForm({
           />
         </section>
       </form>
+    </div>
+  );
+}
+
+function ProgressStatusPicker({
+  onChange,
+  value,
+}: {
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const normalized = normalizeProgressStatus(value);
+
+  return (
+    <div className="progress-status-picker">
+      <span>当前进展状态</span>
+      <div className="progress-status-group">
+        {PROGRESS_STATUSES.map((status) => (
+          <button
+            className={normalized === status ? "active" : ""}
+            key={status}
+            onClick={() => onChange(status)}
+            type="button"
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+      <div className="progress-status-group special">
+        {SPECIAL_PROGRESS_STATUSES.map((status) => (
+          <button
+            className={normalized === status ? "active" : ""}
+            key={status}
+            onClick={() => onChange(status)}
+            type="button"
+          >
+            {status}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

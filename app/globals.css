@@ -1502,7 +1502,7 @@ summary:focus-visible {
 .directory-metrics {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .directory-metrics button {
@@ -1661,6 +1661,7 @@ summary:focus-visible {
   font-size: 12px;
   min-width: 22px;
   padding: 2px 7px;
+  white-space: nowrap;
 }
 
 .filter-pill {
@@ -1746,8 +1747,8 @@ summary:focus-visible {
 .person-list-main {
   align-items: start;
   display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(220px, 0.95fr) minmax(210px, 0.85fr) minmax(340px, 1.45fr) 70px 150px;
+  gap: 16px;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(190px, 0.58fr) minmax(520px, 1.78fr) 144px;
 }
 
 .person-list-identity {
@@ -1771,6 +1772,14 @@ summary:focus-visible {
   line-height: 1.2;
 }
 
+.person-name-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
 .person-list-identity span,
 .person-list-identity em,
 .person-list-identity small {
@@ -1782,6 +1791,7 @@ summary:focus-visible {
 
 .person-list-topics .table-tags {
   max-width: none;
+  min-width: 0;
 }
 
 .assessment-cell {
@@ -1816,46 +1826,93 @@ summary:focus-visible {
 }
 
 .person-progress-line {
-  align-items: baseline;
   border-top: 1px solid var(--line);
-  display: flex;
+  display: grid;
   gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
   min-width: 0;
   padding-top: 7px;
 }
 
-.person-progress-line span {
-  color: var(--accent-strong);
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 800;
-  margin: 0;
-}
-
 .person-progress-line em {
   color: var(--muted);
-  flex: 1;
   font-size: 13px;
   font-style: normal;
   line-height: 1.45;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.topic-more {
+  cursor: help;
+  flex: 0 0 auto;
+  max-width: none;
 }
 
 .progress-add-button {
   justify-self: start;
 }
 
-.subtle-link {
-  color: var(--muted);
+.progress-inline-add {
+  justify-self: start;
+}
+
+.progress-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.progress-status-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-status-picker > span {
+  color: var(--foreground);
   font-size: 13px;
   font-weight: 800;
 }
 
-.priority-cell {
-  padding-top: 2px;
+.progress-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.progress-status-group.special {
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+
+.progress-status-group button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #3e4d61;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 6px 10px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+.progress-status-group button:hover,
+.progress-status-group button.active {
+  background: var(--accent-soft);
+  border-color: #b8d3fb;
+  box-shadow: 0 0 0 3px rgba(25, 103, 210, 0.08);
+  color: var(--accent-strong);
+}
+
+.subtle-link {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .person-list-actions {

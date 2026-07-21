@@ -12,21 +12,23 @@ import type {
 } from "./research-pool-types";
 
 export const RESEARCH_STATUSES: ResearchStatus[] = [
-  "待收集",
-  "初步录入",
-  "待核验",
-  "已核验",
-  "详细调研中",
-  "待上级审核",
-  "调研完成",
-  "信息过期",
+  "待调研",
+  "待联系",
+  "已联系",
+  "已回复",
+  "已预约",
+  "已访谈",
+  "跟进中",
+  "已结束",
+  "长期维护",
+  "暂停推进",
 ];
 
 export const PRIORITIES: Priority[] = [
-  "高",
-  "中",
-  "低",
-  "未评估",
+  "S",
+  "A",
+  "B",
+  "C",
 ];
 
 export const CONTACT_STATUSES: ContactStatus[] = [
@@ -140,16 +142,20 @@ function buildResearchDocument(person: Person) {
 }
 
 function normalizePriority(value = ""): Priority {
-  if (/核心|高/.test(value)) {
-    return "高";
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed === "S" || /核心|高优先|高$/.test(value)) {
+    return "S";
   }
-  if (/中/.test(value)) {
-    return "中";
+  if (trimmed === "A" || /中高/.test(value)) {
+    return "A";
   }
-  if (/低|暂不/.test(value)) {
-    return "低";
+  if (trimmed === "B" || /中低|中/.test(value)) {
+    return "B";
   }
-  return "未评估";
+  if (trimmed === "C" || /低|暂不|未评估/.test(value)) {
+    return "C";
+  }
+  return "C";
 }
 
 const basePerson = (overrides: Partial<Person> & Pick<Person, "id" | "name">): Person => {
@@ -186,7 +192,7 @@ const basePerson = (overrides: Partial<Person> & Pick<Person, "id" | "name">): P
     recommendedApproach: "联系前先核验公开资料。",
     interviewQuestions:
       "下一步应该重点梳理哪些真实机器人数据、评测基准、合作者和实验室连接？",
-    researchStatus: "初步录入",
+    researchStatus: "待调研",
     priority: "未评估",
     contactStatus: "暂不联系",
     owner: "Eric",
@@ -212,7 +218,7 @@ const basePerson = (overrides: Partial<Person> & Pick<Person, "id" | "name">): P
   return {
     ...person,
     priority: normalizePriority(person.priority),
-    isStarred: normalizePriority(person.priority) === "高" && person.isStarred,
+    isStarred: normalizePriority(person.priority) === "S" && person.isStarred,
     shortAssessment:
       overrides.shortAssessment ??
       (person.shortAssessment.includes("待补充") ? "" : person.shortAssessment),
@@ -252,7 +258,7 @@ export const seedPeople: Person[] = [
     whyImportant:
       "BU 多机器人自主和人机协作方向的重要种子对象。",
     priority: "高",
-    researchStatus: "待上级审核",
+    researchStatus: "待联系",
     contactStatus: "待批准联系",
     isStarred: true,
     flags: ["重点关注", "需要上级判断", "近期联系"],
@@ -281,7 +287,7 @@ export const seedPeople: Person[] = [
     robotPlatforms: ["Autonomous systems"],
     whyImportant: "与具身智能和 Physical AI 定位高度相关。",
     priority: "高",
-    researchStatus: "调研完成",
+    researchStatus: "已访谈",
     contactStatus: "计划联系",
     isStarred: true,
     flags: ["重点关注", "信息待核验"],
@@ -308,7 +314,7 @@ export const seedPeople: Person[] = [
     researchMode: "Real-world",
     whyImportant: "对软体机器人和控制导向的 Physical AI 方向有价值。",
     priority: "高",
-    researchStatus: "已核验",
+    researchStatus: "跟进中",
     contactStatus: "暂不联系",
     flags: ["潜在合作对象"],
     tags: ["BU", "Manipulation"],
@@ -332,7 +338,7 @@ export const seedPeople: Person[] = [
     researchMode: "仿真",
     whyImportant: "与安全、验证和具身评测高度相关。",
     priority: "高",
-    researchStatus: "待核验",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     flags: ["需要上级判断"],
     tags: ["BU", "Benchmark Author"],
@@ -355,7 +361,7 @@ export const seedPeople: Person[] = [
     secondaryTopics: ["Autonomous Navigation"],
     whyImportant: "有助于连接机器人理论、控制和自主系统方向。",
     priority: "中",
-    researchStatus: "初步录入",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     flags: ["信息待核验"],
     tags: ["BU", "Multi-Robot"],
@@ -376,7 +382,7 @@ export const seedPeople: Person[] = [
     researchMode: "真实机器人",
     whyImportant: "对手术机器人和材料机器人方向有价值。",
     priority: "中",
-    researchStatus: "初步录入",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     flags: ["潜在合作对象"],
     tags: ["BU", "Manipulation"],
@@ -395,7 +401,7 @@ export const seedPeople: Person[] = [
     secondaryTopics: ["Sim-to-Real"],
     researchMode: "真实机器人",
     priority: "中",
-    researchStatus: "待核验",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     flags: ["信息待核验"],
     tags: ["BU", "Manipulation"],
@@ -411,7 +417,7 @@ export const seedPeople: Person[] = [
     researchTopics: ["Multi-Robot Systems", "Human-Robot Interaction"],
     secondaryTopics: ["Robot Planning"],
     priority: "中",
-    researchStatus: "初步录入",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     tags: ["BU", "Multi-Robot"],
     advisorIds: ["alyssa-pierson"],
@@ -425,7 +431,7 @@ export const seedPeople: Person[] = [
     department: "Mechanical Engineering",
     researchTopics: ["Robot Planning", "Multi-Robot Systems"],
     priority: "未评估",
-    researchStatus: "待收集",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     tags: ["BU", "Multi-Robot"],
     advisorIds: ["alyssa-pierson"],
@@ -440,7 +446,7 @@ export const seedPeople: Person[] = [
     researchTopics: ["Embodied AI", "Robot Learning"],
     secondaryTopics: ["Vision-Language-Action"],
     priority: "高",
-    researchStatus: "详细调研中",
+    researchStatus: "跟进中",
     contactStatus: "计划联系",
     flags: ["近期联系"],
     tags: ["BU", "VLA"],
@@ -456,7 +462,7 @@ export const seedPeople: Person[] = [
     department: "Mechanical Engineering",
     researchTopics: ["Soft Robotics", "Control Systems"],
     priority: "低",
-    researchStatus: "待收集",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     tags: ["BU"],
     advisorIds: ["andrew-sabelhaus"],
@@ -472,7 +478,7 @@ export const seedPeople: Person[] = [
     department: "Electrical and Computer Engineering",
     researchTopics: ["Formal Methods", "Embodied Evaluation"],
     priority: "未评估",
-    researchStatus: "待收集",
+    researchStatus: "待调研",
     contactStatus: "暂不联系",
     tags: ["BU", "Benchmark Author"],
     advisorIds: ["wenchao-li"],

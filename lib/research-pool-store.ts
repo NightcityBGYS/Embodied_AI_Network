@@ -78,16 +78,20 @@ function splitList(value: string) {
 }
 
 function normalizePriority(value = ""): Priority {
-  if (/核心|高/.test(value)) {
-    return "高";
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed === "S" || /核心|高优先|高$/.test(value)) {
+    return "S";
   }
-  if (/中/.test(value)) {
-    return "中";
+  if (trimmed === "A" || /中高/.test(value)) {
+    return "A";
   }
-  if (/低|暂不/.test(value)) {
-    return "低";
+  if (trimmed === "B" || /中低|中/.test(value)) {
+    return "B";
   }
-  return "未评估";
+  if (trimmed === "C" || /低|暂不|未评估/.test(value)) {
+    return "C";
+  }
+  return "C";
 }
 
 function normalizeUpdateType(value = ""): UpdateType {
@@ -579,7 +583,7 @@ export function importPeopleFromCsv(csv: string, user: CurrentUser) {
           record.why_important ||
           "",
         priority: normalizePriority(record.priority),
-        researchStatus: (record.research_status as ResearchStatus) || "初步录入",
+        researchStatus: (record.research_status as ResearchStatus) || "待调研",
         contactStatus: (record.contact_status as ContactStatus) || "暂不联系",
         feishuDocUrl:
           record.feishu_doc_url ||
@@ -672,8 +676,8 @@ function createEmptyPerson(user: CurrentUser): Person {
     networkValue: "",
     recommendedApproach: "",
     interviewQuestions: "",
-    researchStatus: "初步录入",
-    priority: "未评估",
+    researchStatus: "待调研",
+    priority: "C",
     contactStatus: "暂不联系",
     owner: user.name,
     isStarred: false,

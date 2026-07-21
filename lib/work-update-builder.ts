@@ -12,10 +12,12 @@ type PatchContext = BuildContext & {
 };
 
 function normalizePriority(value = "") {
-  if (/核心|高/.test(value)) return "高";
-  if (/中/.test(value)) return "中";
-  if (/低|暂不/.test(value)) return "低";
-  return "未评估";
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed === "S" || /核心|高优先|高$/.test(value)) return "S";
+  if (trimmed === "A" || /中高/.test(value)) return "A";
+  if (trimmed === "B" || /中低|中/.test(value)) return "B";
+  if (trimmed === "C" || /低|暂不|未评估/.test(value)) return "C";
+  return "C";
 }
 
 function sameText(left = "", right = "") {
@@ -118,7 +120,7 @@ export function buildPersonPatchedUpdate(
 
   if (
     !sameText(before.researchStatus, after.researchStatus) &&
-    after.researchStatus.includes("调研完成")
+    /已访谈|已结束/.test(after.researchStatus)
   ) {
     changes.push("完成人物调研");
     updateType ||= "完成人物调研";
@@ -127,7 +129,7 @@ export function buildPersonPatchedUpdate(
 
   if (
     (!sameText(before.researchStatus, after.researchStatus) &&
-      after.researchStatus.includes("已核验")) ||
+      /已联系|已回复|已预约|跟进中/.test(after.researchStatus)) ||
     (!sameText(before.lastVerifiedAt, after.lastVerifiedAt) && Boolean(after.lastVerifiedAt))
   ) {
     changes.push("完成信息核验");

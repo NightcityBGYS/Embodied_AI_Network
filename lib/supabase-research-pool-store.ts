@@ -71,10 +71,12 @@ const validUpdateTypes: UpdateType[] = [
 ];
 
 function normalizePriority(value = ""): Priority {
-  if (/核心|高/.test(value)) return "高";
-  if (/中/.test(value)) return "中";
-  if (/低|暂不/.test(value)) return "低";
-  return "未评估";
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed === "S" || /核心|高优先|高$/.test(value)) return "S";
+  if (trimmed === "A" || /中高/.test(value)) return "A";
+  if (trimmed === "B" || /中低|中/.test(value)) return "B";
+  if (trimmed === "C" || /低|暂不|未评估/.test(value)) return "C";
+  return "C";
 }
 
 function normalizeUpdateType(value = ""): UpdateType {
@@ -236,8 +238,8 @@ function personFromRow(row: PersonRow): Person {
     networkValue: asString(row.network_value),
     recommendedApproach: asString(row.recommended_approach),
     interviewQuestions: asString(row.interview_questions),
-    researchStatus: asString(row.research_status, "初步录入") as ResearchStatus,
-    priority: normalizePriority(asString(row.priority, "未评估")),
+    researchStatus: asString(row.research_status, "待调研") as ResearchStatus,
+    priority: normalizePriority(asString(row.priority, "C")),
     contactStatus: asString(row.contact_status, "暂不联系") as ContactStatus,
     owner: asString(row.owner_name, "Eric"),
     isStarred: asBoolean(row.is_starred),
@@ -293,8 +295,8 @@ function personToRow(person: Partial<Person>, user: CurrentUser, includeId = fal
     network_value: person.networkValue ?? "",
     recommended_approach: person.recommendedApproach ?? "",
     interview_questions: person.interviewQuestions ?? "",
-    research_status: person.researchStatus ?? "初步录入",
-    priority: normalizePriority(String(person.priority ?? "未评估")),
+    research_status: person.researchStatus ?? "待调研",
+    priority: normalizePriority(String(person.priority ?? "C")),
     contact_status: person.contactStatus ?? "暂不联系",
     owner_name: person.owner || user.name,
     is_starred: Boolean(person.isStarred),
@@ -826,7 +828,7 @@ export async function importPeopleFromCsv(csv: string, user: CurrentUser) {
           record.why_important ||
           "",
         priority: normalizePriority(record.priority),
-        researchStatus: record.research_status || "初步录入",
+        researchStatus: record.research_status || "待调研",
         contactStatus: record.contact_status || "暂不联系",
         feishuDocUrl:
           record.feishu_doc_url ||
@@ -952,8 +954,8 @@ function createEmptyPerson(user: CurrentUser): Person {
     networkValue: "",
     recommendedApproach: "",
     interviewQuestions: "",
-    researchStatus: "初步录入",
-    priority: "未评估",
+    researchStatus: "待调研",
+    priority: "C",
     contactStatus: "暂不联系",
     owner: user.name,
     isStarred: false,
