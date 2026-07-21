@@ -466,8 +466,6 @@ export async function createPerson(person: Person, user: CurrentUser) {
   });
   const saved = personFromRow(rows[0]);
 
-  await upsertOrganization(saved.institution, "school");
-  await upsertOrganization(saved.lab, "lab");
   await appendActivity({
     actor: user.name,
     actorRole: user.role,
@@ -522,8 +520,6 @@ export async function patchPerson(
   const saved = rows[0] ? personFromRow(rows[0]) : null;
   if (!saved) return null;
 
-  await upsertOrganization(saved.institution, "school");
-  await upsertOrganization(saved.lab, "lab");
   await appendActivity({
     actor: user.name,
     actorRole: user.role,
@@ -1039,21 +1035,6 @@ async function appendActivity(activity: Omit<ActivityLog, "id" | "createdAt">) {
       after_value: activity.after ?? "",
     }),
   });
-}
-
-async function upsertOrganization(name: string, organizationType: string) {
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  await supabaseFetch("/organizations?on_conflict=name", {
-    method: "POST",
-    headers: {
-      Prefer: "resolution=merge-duplicates",
-    },
-    body: JSON.stringify({
-      name: trimmed,
-      organization_type: organizationType,
-    }),
-  }).catch(() => undefined);
 }
 
 function createEmptyPerson(user: CurrentUser): Person {

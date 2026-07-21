@@ -944,7 +944,7 @@ export function ResearchPoolApp({
       dashboard: "/dashboard",
       updates: "/updates",
       organizations: "/organizations",
-      people: "/people",
+      people: id ? `/people#person-${id}` : "/people",
       detail: `/people/${id}`,
       new: "/people/new",
       edit: `/people/${id}/edit`,
@@ -1516,6 +1516,7 @@ export function ResearchPoolApp({
                 exportCsv={exportCsv}
                 filteredPeople={filteredPeople}
                 filters={filters}
+                highlightPersonId={selectedEntityId}
                 importCsv={importCsv}
                 importText={importText}
                 institutions={institutions}
@@ -1542,6 +1543,7 @@ export function ResearchPoolApp({
                 canEdit={canEdit}
                 onCreate={createOrganization}
                 onDelete={deleteOrganization}
+                onNavigate={navigate}
                 onPatch={patchOrganization}
                 organizations={state.organizations}
                 people={state.people}
@@ -2740,6 +2742,7 @@ function OrganizationsView({
   canEdit,
   onCreate,
   onDelete,
+  onNavigate,
   onPatch,
   organizations,
   people,
@@ -2748,6 +2751,7 @@ function OrganizationsView({
   canEdit: boolean;
   onCreate: (organization: Partial<ResearchOrganization>) => Promise<void> | void;
   onDelete: (organizationId: string) => Promise<void> | void;
+  onNavigate: (view: View, id?: string) => void;
   onPatch: (organizationId: string, organization: Partial<ResearchOrganization>) => Promise<void> | void;
   organizations: ResearchOrganization[];
   people: Person[];
@@ -2914,10 +2918,16 @@ function OrganizationsView({
                   </span>
                   {organization.websiteUrl ? (
                     <a href={organization.websiteUrl} rel="noreferrer" target="_blank">
-                      官网 ↗
+                      飞书详情 ↗
                     </a>
                   ) : (
-                    <span>官网待补充</span>
+                    <button
+                      disabled={!canEdit}
+                      onClick={() => setDrawer({ mode: "edit", source: organization })}
+                      type="button"
+                    >
+                      补充飞书详情
+                    </button>
                   )}
                 </div>
 
@@ -2926,7 +2936,13 @@ function OrganizationsView({
                   {relatedPeople.length ? (
                     <div className="organization-person-list">
                       {relatedPeople.slice(0, 6).map((person) => (
-                        <span key={person.id}>{person.name}</span>
+                        <button
+                          key={person.id}
+                          onClick={() => onNavigate("people", person.id)}
+                          type="button"
+                        >
+                          {person.name}
+                        </button>
                       ))}
                       {relatedPeople.length > 6 && <em>+{relatedPeople.length - 6}</em>}
                     </div>
@@ -3062,7 +3078,7 @@ function OrganizationDrawer({
               ))}
             </select>
           </label>
-          <Field label="官网 / 主页 URL" onChange={(value) => update("websiteUrl", value)} value={draft.websiteUrl} />
+          <Field label="飞书详情链接" onChange={(value) => update("websiteUrl", value)} value={draft.websiteUrl} />
           <label className="field-label">
             组织备注 / 当前判断
             <textarea
@@ -3093,6 +3109,7 @@ function PeopleView({
   exportCsv,
   filteredPeople,
   filters,
+  highlightPersonId,
   importCsv,
   importText,
   institutions,
@@ -3117,6 +3134,7 @@ function PeopleView({
   exportCsv: () => void;
   filteredPeople: Person[];
   filters: Filters;
+  highlightPersonId: string;
   importCsv: () => void;
   importText: string;
   institutions: string[];
@@ -3158,6 +3176,17 @@ function PeopleView({
     feishuDocUrl: "",
     supervisorNote: "",
   });
+
+  useEffect(() => {
+    if (!highlightPersonId || typeof window === "undefined") {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(`person-${highlightPersonId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [highlightPersonId]);
 
   const filterGroups: Array<{
     key: keyof Omit<Filters, "search" | "showArchived">;
@@ -3555,7 +3584,17 @@ function PeopleView({
             const progressStatus = normalizeProgressStatus(person.researchStatus);
 
             return (
-              <article className={editing ? "person-list-card editing" : "person-list-card"} key={person.id}>
+              <article
+                className={[
+                  "person-list-card",
+                  editing ? "editing" : "",
+                  highlightPersonId === person.id ? "highlighted" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                id={`person-${person.id}`}
+                key={person.id}
+              >
                 <div className="person-list-main">
                   <div className="person-list-identity">
                     <PersonAvatar name={person.name} url={person.avatarUrl} />

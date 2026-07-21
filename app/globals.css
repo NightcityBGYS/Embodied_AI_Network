@@ -1824,7 +1824,8 @@ summary:focus-visible {
 }
 
 .organization-facts span,
-.organization-facts a {
+.organization-facts a,
+.organization-facts button {
   align-items: center;
   background: #fff;
   border: 1px solid var(--line);
@@ -1841,9 +1842,14 @@ summary:focus-visible {
   color: var(--foreground);
 }
 
-.organization-facts a {
+.organization-facts a,
+.organization-facts button {
   color: var(--accent);
   font-weight: 800;
+}
+
+.organization-facts button:disabled {
+  color: var(--muted);
 }
 
 .organization-section {
@@ -1870,7 +1876,7 @@ summary:focus-visible {
   gap: 7px;
 }
 
-.organization-person-list span,
+.organization-person-list button,
 .organization-person-list em {
   background: #f8fafc;
   border: 1px solid var(--line);
@@ -1879,6 +1885,11 @@ summary:focus-visible {
   font-size: 12px;
   font-style: normal;
   padding: 4px 8px;
+}
+
+.organization-person-list button:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .organization-update-list {
@@ -1935,6 +1946,11 @@ summary:focus-visible {
 .person-list-card.editing {
   border-color: #b8d3fb;
   box-shadow: 0 0 0 3px rgba(25, 103, 210, 0.08);
+}
+
+.person-list-card.highlighted {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(25, 103, 210, 0.12), var(--shadow-soft);
 }
 
 .person-list-main {

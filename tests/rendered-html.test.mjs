@@ -106,6 +106,7 @@ test("organizations directory renders specific organization cards", async () => 
   assert.match(html, /H2X Lab/);
   assert.match(html, /Collaborative Autonomy Group/);
   assert.match(html, /新增组织/);
+  assert.match(html, /补充飞书详情|飞书详情 ↗/);
   assert.match(html, /关联人员/);
   assert.doesNotMatch(html, /Boston University<\/h2>/);
 });
