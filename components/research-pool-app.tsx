@@ -3161,6 +3161,7 @@ function PeopleView({
   const [sortMode, setSortMode] = useState<PeopleSortMode>("createdAt");
   const [editingPersonId, setEditingPersonId] = useState("");
   const [editMode, setEditMode] = useState<CardEditMode>("basic");
+  const [openPersonMenuId, setOpenPersonMenuId] = useState("");
   const [cardDraft, setCardDraft] = useState<PersonCardDraft>({
     name: "",
     role: "PhD Student",
@@ -3302,6 +3303,7 @@ function PeopleView({
   const cCount = metricsPeople.filter((person) => normalizePriority(person.priority) === "C").length;
 
   function startCardEdit(person: Person, mode: CardEditMode) {
+    setOpenPersonMenuId("");
     setEditingPersonId(person.id);
     setEditMode(mode);
     setCardDraft({
@@ -3376,6 +3378,7 @@ function PeopleView({
           ? "人物详情链接"
           : "基础信息",
     );
+    setOpenPersonMenuId("");
     setEditingPersonId("");
   }
 
@@ -3582,6 +3585,7 @@ function PeopleView({
             const assessment = displayAssessment(person.shortAssessment);
             const progressText = person.nextAction.trim();
             const progressStatus = normalizeProgressStatus(person.researchStatus);
+            const menuOpen = openPersonMenuId === person.id;
 
             return (
               <article
@@ -3618,7 +3622,11 @@ function PeopleView({
                         <span key={topic}>{topic}</span>
                       ))}
                       {extraTopicCount > 0 && (
-                        <span className="topic-more" title={hiddenTopics.join(" / ")}>
+                        <span
+                          className="topic-more"
+                          data-tooltip={hiddenTopics.join(" / ")}
+                          tabIndex={0}
+                        >
                           +{extraTopicCount}
                         </span>
                       )}
@@ -3680,9 +3688,17 @@ function PeopleView({
                         补充详情
                       </button>
                     )}
-                    <details className="person-more-menu">
-                      <summary aria-label={`更多操作 ${person.name}`}>···</summary>
-                      <div>
+                    <div className={menuOpen ? "person-more-menu open" : "person-more-menu"}>
+                      <button
+                        aria-expanded={menuOpen}
+                        aria-label={`更多操作 ${person.name}`}
+                        className="person-more-trigger"
+                        onClick={() => setOpenPersonMenuId(menuOpen ? "" : person.id)}
+                        type="button"
+                      >
+                        ···
+                      </button>
+                      <div className="person-more-dropdown" hidden={!menuOpen}>
                         <button disabled={!canEdit} onClick={() => startCardEdit(person, "basic")} type="button">
                           编辑基础信息
                         </button>
@@ -3698,14 +3714,28 @@ function PeopleView({
                         <button disabled={!canEdit} onClick={() => startCardEdit(person, "progress")} type="button">
                           编辑当前进展
                         </button>
-                        <button disabled={!canEdit} onClick={() => onArchive(person, true)} type="button">
+                        <button
+                          disabled={!canEdit}
+                          onClick={() => {
+                            setOpenPersonMenuId("");
+                            onArchive(person, true);
+                          }}
+                          type="button"
+                        >
                           归档
                         </button>
-                        <button disabled={!canEdit} onClick={() => confirmDelete(person)} type="button">
+                        <button
+                          disabled={!canEdit}
+                          onClick={() => {
+                            setOpenPersonMenuId("");
+                            confirmDelete(person);
+                          }}
+                          type="button"
+                        >
                           删除
                         </button>
                       </div>
-                    </details>
+                    </div>
                   </div>
                 </div>
 
@@ -3834,7 +3864,14 @@ function PeopleView({
                       <button className="button primary" onClick={() => saveCardEdit(person)} type="button">
                         保存
                       </button>
-                      <button className="button" onClick={() => setEditingPersonId("")} type="button">
+                      <button
+                        className="button"
+                        onClick={() => {
+                          setOpenPersonMenuId("");
+                          setEditingPersonId("");
+                        }}
+                        type="button"
+                      >
                         取消
                       </button>
                     </div>

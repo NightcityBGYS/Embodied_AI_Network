@@ -2057,6 +2057,59 @@ summary:focus-visible {
   cursor: help;
   flex: 0 0 auto;
   max-width: none;
+  outline: none;
+  position: relative;
+}
+
+.topic-more::after {
+  background: #111827;
+  border-radius: 8px;
+  bottom: calc(100% + 10px);
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.18);
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 700;
+  left: 50%;
+  line-height: 1.45;
+  max-width: min(320px, 72vw);
+  min-width: 180px;
+  opacity: 0;
+  padding: 8px 10px;
+  pointer-events: none;
+  position: absolute;
+  text-align: left;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  white-space: normal;
+  z-index: 30;
+}
+
+.topic-more::before {
+  border: 6px solid transparent;
+  border-top-color: #111827;
+  bottom: calc(100% - 1px);
+  content: "";
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  transition: opacity 140ms ease;
+  z-index: 31;
+}
+
+.topic-more:hover::after,
+.topic-more:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.topic-more:hover::before,
+.topic-more:focus-visible::before {
+  opacity: 1;
 }
 
 .progress-add-button {
@@ -2142,7 +2195,7 @@ summary:focus-visible {
   position: relative;
 }
 
-.person-more-menu summary {
+.person-more-trigger {
   align-items: center;
   background: #fff;
   border: 1px solid var(--line);
@@ -2158,15 +2211,12 @@ summary:focus-visible {
   width: 38px;
 }
 
-.person-more-menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.person-more-menu[open] summary {
+.person-more-menu.open .person-more-trigger {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(25, 103, 210, 0.08);
 }
 
-.person-more-menu div {
+.person-more-dropdown {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2181,7 +2231,11 @@ summary:focus-visible {
   z-index: 8;
 }
 
-.person-more-menu button {
+.person-more-dropdown[hidden] {
+  display: none;
+}
+
+.person-more-dropdown button {
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -2190,8 +2244,13 @@ summary:focus-visible {
   text-align: left;
 }
 
-.person-more-menu button:hover {
+.person-more-dropdown button:hover:not(:disabled) {
   background: var(--panel-muted);
+}
+
+.person-more-dropdown button:disabled {
+  color: #9aa8bb;
+  cursor: not-allowed;
 }
 
 .person-avatar {
