@@ -18,6 +18,7 @@ import type {
   NextStep,
   Person,
   Priority,
+  ResearchOrganization,
   ResearchStatus,
   UpdateType,
   WorkUpdate,
@@ -53,7 +54,12 @@ type NextStepPayload = {
   step: Partial<NextStep>;
 };
 
+type OrganizationPayload = {
+  organization: Partial<ResearchOrganization>;
+};
+
 type PersonRow = Record<string, unknown>;
+type OrganizationRow = Record<string, unknown>;
 type UpdateRow = Record<string, unknown>;
 type ActivityRow = Record<string, unknown>;
 type BriefRow = Record<string, unknown>;
@@ -338,6 +344,39 @@ function updateFromRow(row: UpdateRow): WorkUpdate {
     occurredAt: formatStamp(row.occurred_at, stamp),
     createdAt: formatStamp(row.created_at, stamp),
     updatedAt: formatStamp(row.updated_at, stamp),
+  };
+}
+
+function organizationFromRow(row: OrganizationRow, sourceCount?: number): ResearchOrganization {
+  const stamp = nowStamp();
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    type: normalizeOrganizationType(asString(row.organization_type, "实验室")),
+    websiteUrl: asString(row.website_url),
+    note: asString(row.note),
+    sourceCount: sourceCount ?? asNumber(row.source_count),
+    createdAt: formatStamp(row.created_at, stamp),
+    updatedAt: formatStamp(row.updated_at, stamp),
+  };
+}
+
+function normalizeOrganizationType(value = "") {
+  const trimmed = value.trim();
+  if (trimmed === "lab") return "实验室";
+  if (trimmed === "company" || trimmed === "industry") return "公司/产业机构";
+  if (trimmed === "team" || trimmed === "group") return "研究团队";
+  if (trimmed === "center" || trimmed === "project") return "项目/中心";
+  if (trimmed === "organization") return "其他";
+  return trimmed || "实验室";
+}
+
+function organizationToRow(organization: Partial<ResearchOrganization>) {
+  return {
+    name: organization.name?.trim() || "未命名组织",
+    organization_type: organization.type?.trim() || "实验室",
+    website_url: organization.websiteUrl?.trim() || "",
+    note: organization.note?.trim() || "",
   };
 }
 
@@ -864,15 +903,115 @@ export async function importPeopleFromCsv(csv: string, user: CurrentUser) {
 }
 
 export async function listOrganizations() {
-  const rows = await supabaseFetch<Record<string, unknown>[]>(
-    "/organizations?select=*&order=name.asc",
+  const [rows, sourceCounts] = await Promise.all([
+    supabaseFetch<OrganizationRow[]>(
+      "/organizations?select=*&organization_type=neq.school&order=name.asc",
+    ),
+    organizationSourceCounts(),
+  ]);
+  return rows.map((row) =>
+    organizationFromRow(row, sourceCounts.get(asString(row.name).toLowerCase())),
   );
-  return rows.map((row) => ({
-    id: asString(row.id),
-    name: asString(row.name),
-    type: asString(row.organization_type, "organization"),
-    sourceCount: asNumber(row.source_count),
-  }));
+}
+
+export async function createOrganization(
+  payload: OrganizationPayload,
+  user: CurrentUser,
+) {
+  const rows = await supabaseFetch<OrganizationRow[]>(
+    "/organizations?on_conflict=name&select=*",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(organizationToRow(payload.organization)),
+    },
+  );
+  const saved = organizationFromRow(rows[0]);
+  await appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "新增组织",
+    targetType: "organization",
+    targetId: saved.id,
+    summary: `${user.name} 新增了组织：${saved.name}。`,
+  });
+  return saved;
+}
+
+export async function patchOrganization(
+  id: string,
+  payload: OrganizationPayload,
+  user: CurrentUser,
+) {
+  const currentRows = await supabaseFetch<OrganizationRow[]>(
+    `/organizations?id=eq.${encodeURIComponent(id)}&select=*&limit=1`,
+  );
+  if (!currentRows[0]) {
+    return null;
+  }
+  const current = organizationFromRow(currentRows[0]);
+  const rows = await supabaseFetch<OrganizationRow[]>(
+    `/organizations?id=eq.${encodeURIComponent(id)}&select=*`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(
+        organizationToRow({
+          ...current,
+          ...payload.organization,
+        }),
+      ),
+    },
+  );
+  const saved = organizationFromRow(rows[0]);
+  await appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "更新组织",
+    targetType: "organization",
+    targetId: saved.id,
+    summary: `${user.name} 更新了组织：${saved.name}。`,
+  });
+  return saved;
+}
+
+export async function deleteOrganization(id: string, user: CurrentUser) {
+  const currentRows = await supabaseFetch<OrganizationRow[]>(
+    `/organizations?id=eq.${encodeURIComponent(id)}&select=*&limit=1`,
+  );
+  if (!currentRows[0]) {
+    return null;
+  }
+  const current = organizationFromRow(currentRows[0]);
+  await supabaseFetch(`/organizations?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  await appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "删除组织",
+    targetType: "organization",
+    targetId: current.id,
+    summary: `${user.name} 删除了组织：${current.name}。`,
+  });
+  return current;
+}
+
+async function organizationSourceCounts() {
+  const rows = await supabaseFetch<Array<{ lab?: string }>>(
+    "/people?select=lab&archived=eq.false",
+  );
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const lab = asString(row.lab).trim().toLowerCase();
+    if (!lab) continue;
+    counts.set(lab, (counts.get(lab) ?? 0) + 1);
+  }
+  return counts;
 }
 
 async function appendUpdate(

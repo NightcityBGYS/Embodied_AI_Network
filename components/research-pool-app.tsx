@@ -12,6 +12,7 @@ import type {
   DashboardBrief,
   NextStep,
   Person,
+  ResearchOrganization,
   ResearchPoolState,
   UpdateType,
   UserRole,
@@ -22,6 +23,7 @@ type View =
   | "login"
   | "dashboard"
   | "updates"
+  | "organizations"
   | "people"
   | "detail"
   | "new"
@@ -104,6 +106,8 @@ type NextStepDraft = Pick<NextStep, "id" | "content" | "completed" | "sortOrder"
   deleted?: boolean;
 };
 
+type OrganizationDraft = Pick<ResearchOrganization, "name" | "type" | "websiteUrl" | "note">;
+
 type SaveState = {
   error: string;
   saving: boolean;
@@ -156,6 +160,7 @@ const PROGRESS_STATUSES = [
 ] as const;
 const SPECIAL_PROGRESS_STATUSES = ["长期维护", "暂停推进"] as const;
 const ALL_PROGRESS_STATUSES = [...PROGRESS_STATUSES, ...SPECIAL_PROGRESS_STATUSES] as const;
+const ORGANIZATION_TYPES = ["实验室", "研究团队", "公司/产业机构", "项目/中心", "其他"] as const;
 const EMPTY_SAVE_STATE: SaveState = { error: "", saving: false, success: "" };
 const PUBLIC_SUPABASE_CONFIGURED = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -166,6 +171,7 @@ const INITIAL_USER: CurrentUserState = PUBLIC_SUPABASE_CONFIGURED
 const INITIAL_RESEARCH_POOL_STATE: ResearchPoolState = PUBLIC_SUPABASE_CONFIGURED
   ? {
       people: [],
+      organizations: [],
       activities: [],
       updates: [],
       dashboardBrief: {
@@ -697,12 +703,14 @@ export function ResearchPoolApp({
         peopleResponse,
         activitiesResponse,
         updatesResponse,
+        organizationsResponse,
         briefResponse,
         nextStepsResponse,
       ] = await Promise.all([
         fetch("/api/people"),
         fetch("/api/activity-logs"),
         fetch("/api/updates"),
+        fetch("/api/organizations"),
         fetch("/api/dashboard/brief"),
         fetch("/api/dashboard/next-steps"),
       ]);
@@ -711,23 +719,33 @@ export function ResearchPoolApp({
         !peopleResponse.ok ||
         !activitiesResponse.ok ||
         !updatesResponse.ok ||
+        !organizationsResponse.ok ||
         !briefResponse.ok ||
         !nextStepsResponse.ok
       ) {
         throw new Error("REST API load failed");
       }
 
-      const [peopleData, activitiesData, updatesData, briefData, nextStepsData] =
+      const [
+        peopleData,
+        activitiesData,
+        updatesData,
+        organizationsData,
+        briefData,
+        nextStepsData,
+      ] =
         await Promise.all([
         peopleResponse.json() as Promise<{ people: Person[] }>,
         activitiesResponse.json() as Promise<{ activities: ActivityLog[] }>,
         updatesResponse.json() as Promise<{ updates: WorkUpdate[] }>,
+        organizationsResponse.json() as Promise<{ organizations: ResearchOrganization[] }>,
         briefResponse.json() as Promise<{ brief: DashboardBrief }>,
         nextStepsResponse.json() as Promise<{ nextSteps: NextStep[] }>,
       ]);
 
       setState({
         people: peopleData.people.map(normalizePerson),
+        organizations: organizationsData.organizations,
         activities: activitiesData.activities,
         updates: updatesData.updates,
         dashboardBrief: briefData.brief,
@@ -745,6 +763,7 @@ export function ResearchPoolApp({
 
       setState({
         people: seedResearchPoolState.people.map(normalizePerson),
+        organizations: seedResearchPoolState.organizations,
         activities: seedResearchPoolState.activities,
         updates: seedResearchPoolState.updates,
         dashboardBrief: seedResearchPoolState.dashboardBrief,
@@ -924,6 +943,7 @@ export function ResearchPoolApp({
       login: "/login",
       dashboard: "/dashboard",
       updates: "/updates",
+      organizations: "/organizations",
       people: "/people",
       detail: `/people/${id}`,
       new: "/people/new",
@@ -1045,6 +1065,62 @@ export function ResearchPoolApp({
     }
     await loadState();
     setNotice("工作记录已删除");
+  }
+
+  async function createOrganization(organization: Partial<ResearchOrganization>) {
+    if (!canEdit) {
+      return;
+    }
+
+    const response = await fetch("/api/organizations", {
+      method: "POST",
+      headers: requestHeaders(),
+      body: JSON.stringify({ organization }),
+    });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || "组织保存失败");
+    }
+    await loadState();
+    setNotice("组织已保存");
+  }
+
+  async function patchOrganization(
+    organizationId: string,
+    organization: Partial<ResearchOrganization>,
+  ) {
+    if (!canEdit) {
+      return;
+    }
+
+    const response = await fetch(`/api/organizations/${organizationId}`, {
+      method: "PATCH",
+      headers: requestHeaders(),
+      body: JSON.stringify({ organization }),
+    });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || "组织保存失败");
+    }
+    await loadState();
+    setNotice("组织已保存");
+  }
+
+  async function deleteOrganization(organizationId: string) {
+    if (!canEdit) {
+      return;
+    }
+
+    const response = await fetch(`/api/organizations/${organizationId}`, {
+      method: "DELETE",
+      headers: requestHeaders(),
+    });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || "组织删除失败");
+    }
+    await loadState();
+    setNotice("组织已删除");
   }
 
   async function patchDashboardBrief(patch: Partial<DashboardBrief>) {
@@ -1387,6 +1463,13 @@ export function ResearchPoolApp({
               人员目录
             </button>
             <button
+              className={view === "organizations" ? "nav-item active" : "nav-item"}
+              onClick={() => navigate("organizations")}
+              type="button"
+            >
+              组织目录
+            </button>
+            <button
               className={view === "new" ? "nav-item active" : "nav-item"}
               disabled={!canEdit}
               onClick={() => navigate("new")}
@@ -1451,6 +1534,18 @@ export function ResearchPoolApp({
                 roleLabels={roleLabelMap}
                 roles={[...ROLE_OPTIONS]}
                 topics={allTopics}
+              />
+            )}
+
+            {view === "organizations" && (
+              <OrganizationsView
+                canEdit={canEdit}
+                onCreate={createOrganization}
+                onDelete={deleteOrganization}
+                onPatch={patchOrganization}
+                organizations={state.organizations}
+                people={state.people}
+                updates={state.updates}
               />
             )}
 
@@ -1543,6 +1638,13 @@ function Header({
           type="button"
         >
           人员
+        </button>
+        <button
+          className={view === "organizations" ? "text-tab active" : "text-tab"}
+          onClick={() => onNavigate("organizations")}
+          type="button"
+        >
+          组织
         </button>
         <div className="account-pill">
           <span>{currentUser.name || "未登录"}</span>
@@ -2632,6 +2734,357 @@ function draftFromUpdate(source?: Partial<WorkUpdate>): UpdateDraft {
     feishuUrl: source?.feishuUrl ?? "",
     occurredAt: source?.occurredAt ?? nowStamp(),
   };
+}
+
+function OrganizationsView({
+  canEdit,
+  onCreate,
+  onDelete,
+  onPatch,
+  organizations,
+  people,
+  updates,
+}: {
+  canEdit: boolean;
+  onCreate: (organization: Partial<ResearchOrganization>) => Promise<void> | void;
+  onDelete: (organizationId: string) => Promise<void> | void;
+  onPatch: (organizationId: string, organization: Partial<ResearchOrganization>) => Promise<void> | void;
+  organizations: ResearchOrganization[];
+  people: Person[];
+  updates: WorkUpdate[];
+}) {
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("全部");
+  const [drawer, setDrawer] = useState<{
+    mode: "create" | "edit";
+    source?: ResearchOrganization;
+  } | null>(null);
+
+  const concreteOrganizations = organizations.filter((organization) => organization.type !== "school");
+  const organizationTypes = unique([
+    ...ORGANIZATION_TYPES,
+    ...concreteOrganizations.map((organization) => organization.type),
+  ]);
+  const relatedPeopleByOrganization = new Map(
+    concreteOrganizations.map((organization) => [
+      organization.name,
+      people.filter(
+        (person) =>
+          !person.archived &&
+          person.lab.trim().toLowerCase() === organization.name.trim().toLowerCase(),
+      ),
+    ]),
+  );
+  const visibleOrganizations = concreteOrganizations.filter((organization) => {
+    const haystack = [
+      organization.name,
+      organization.type,
+      organization.websiteUrl,
+      organization.note,
+    ]
+      .join(" ")
+      .toLowerCase();
+    const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
+    const matchesType = typeFilter === "全部" || organization.type === typeFilter;
+    return matchesQuery && matchesType;
+  });
+
+  async function confirmDelete(organization: ResearchOrganization) {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`确认删除这个组织？\n\n${organization.name}\n\n人员记录里的实验室文本不会被删除。`)
+    ) {
+      return;
+    }
+    await onDelete(organization.id);
+  }
+
+  return (
+    <div className="page-stack organization-page">
+      <section className="directory-hero">
+        <div>
+          <p className="eyebrow">组织目录</p>
+          <h1>研究组织名单</h1>
+          <p>只维护实验室、研究团队、公司或项目中心；学校等大机构继续保留在人员基础信息里。</p>
+        </div>
+        <div className="directory-metrics organization-metrics" aria-label="组织概览">
+          <button className={typeFilter === "全部" ? "active" : ""} onClick={() => setTypeFilter("全部")} type="button">
+            <strong>{concreteOrganizations.length}</strong>
+            <small>具体组织</small>
+          </button>
+          <button className={typeFilter === "实验室" ? "active" : ""} onClick={() => setTypeFilter("实验室")} type="button">
+            <strong>{concreteOrganizations.filter((item) => item.type === "实验室").length}</strong>
+            <small>实验室</small>
+          </button>
+          <button
+            className={typeFilter === "公司/产业机构" ? "active" : ""}
+            onClick={() => setTypeFilter("公司/产业机构")}
+            type="button"
+          >
+            <strong>{concreteOrganizations.filter((item) => item.type === "公司/产业机构").length}</strong>
+            <small>产业机构</small>
+          </button>
+          <button type="button">
+            <strong>{people.filter((person) => person.lab && !person.archived).length}</strong>
+            <small>关联人员</small>
+          </button>
+        </div>
+      </section>
+
+      <section className="directory-toolbar">
+        <label className="search-row">
+          <input
+            aria-label="搜索组织"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索组织名称、类型、官网或备注"
+            value={query}
+          />
+        </label>
+        <div className="button-row">
+          {canEdit && (
+            <button className="button primary" onClick={() => setDrawer({ mode: "create" })} type="button">
+              新增组织
+            </button>
+          )}
+        </div>
+      </section>
+
+      <div className="quick-filter-row" aria-label="组织类型筛选">
+        <span className="quick-filter-label">类型</span>
+        {["全部", ...organizationTypes].map((type) => (
+          <button
+            className={typeFilter === type ? "quick-filter active" : "quick-filter"}
+            key={type}
+            onClick={() => setTypeFilter(type)}
+            type="button"
+          >
+            <span>{type}</span>
+            <strong>
+              {type === "全部"
+                ? concreteOrganizations.length
+                : concreteOrganizations.filter((organization) => organization.type === type).length}
+            </strong>
+          </button>
+        ))}
+      </div>
+
+      {visibleOrganizations.length ? (
+        <div className="organization-grid">
+          {visibleOrganizations.map((organization) => {
+            const relatedPeople = relatedPeopleByOrganization.get(organization.name) ?? [];
+            const recentUpdates = sortWorkUpdates(
+              updates.filter(
+                (update) =>
+                  update.linkedOrganization.trim().toLowerCase() ===
+                  organization.name.trim().toLowerCase(),
+              ),
+            ).slice(0, 2);
+            const sourceCount = relatedPeople.length || organization.sourceCount;
+
+            return (
+              <article className="organization-card" key={organization.id}>
+                <div className="organization-card-head">
+                  <div>
+                    <span className="org-type-pill">{organization.type || "组织"}</span>
+                    <h2>{organization.name}</h2>
+                  </div>
+                  {canEdit && (
+                    <details className="update-more-menu compact-more-menu">
+                      <summary aria-label={`管理 ${organization.name}`}>···</summary>
+                      <div>
+                        <button onClick={() => setDrawer({ mode: "edit", source: organization })} type="button">
+                          编辑组织
+                        </button>
+                        <button onClick={() => void confirmDelete(organization)} type="button">
+                          删除
+                        </button>
+                      </div>
+                    </details>
+                  )}
+                </div>
+
+                <p className={organization.note ? "organization-note" : "organization-note muted"}>
+                  {organization.note || "暂未记录组织备注。"}
+                </p>
+
+                <div className="organization-facts">
+                  <span>
+                    <strong>{sourceCount}</strong>
+                    关联人员
+                  </span>
+                  {organization.websiteUrl ? (
+                    <a href={organization.websiteUrl} rel="noreferrer" target="_blank">
+                      官网 ↗
+                    </a>
+                  ) : (
+                    <span>官网待补充</span>
+                  )}
+                </div>
+
+                <div className="organization-section">
+                  <span>关联人员</span>
+                  {relatedPeople.length ? (
+                    <div className="organization-person-list">
+                      {relatedPeople.slice(0, 6).map((person) => (
+                        <span key={person.id}>{person.name}</span>
+                      ))}
+                      {relatedPeople.length > 6 && <em>+{relatedPeople.length - 6}</em>}
+                    </div>
+                  ) : (
+                    <p>暂无人员直接关联。</p>
+                  )}
+                </div>
+
+                <div className="organization-section">
+                  <span>最近记录</span>
+                  {recentUpdates.length ? (
+                    <ul className="organization-update-list">
+                      {recentUpdates.map((update) => (
+                        <li key={update.id}>
+                          <small>{formatTimeLabel(update.occurredAt)}</small>
+                          <strong>{update.title}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>暂无关联工作记录。</p>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        canEdit ? (
+          <EmptyState
+            actionLabel="新增组织"
+            message="可以手动添加实验室、研究团队或产业机构，学校层级暂时不用收录。"
+            onAction={() => setDrawer({ mode: "create" })}
+            title="暂无组织"
+          />
+        ) : (
+          <div className="inline-empty">
+            <strong>暂无组织</strong>
+            <p>当前还没有可查看的组织记录。</p>
+          </div>
+        )
+      )}
+
+      {drawer && (
+        <OrganizationDrawer
+          key={`${drawer.mode}-${drawer.source?.id ?? "new"}`}
+          mode={drawer.mode}
+          onClose={() => setDrawer(null)}
+          onCreate={onCreate}
+          onPatch={onPatch}
+          organization={drawer.source}
+        />
+      )}
+    </div>
+  );
+}
+
+function OrganizationDrawer({
+  mode,
+  onClose,
+  onCreate,
+  onPatch,
+  organization,
+}: {
+  mode: "create" | "edit";
+  onClose: () => void;
+  onCreate: (organization: Partial<ResearchOrganization>) => Promise<void> | void;
+  onPatch: (organizationId: string, organization: Partial<ResearchOrganization>) => Promise<void> | void;
+  organization?: ResearchOrganization;
+}) {
+  const [draft, setDraft] = useState<OrganizationDraft>({
+    name: organization?.name ?? "",
+    type: organization?.type ?? "实验室",
+    websiteUrl: organization?.websiteUrl ?? "",
+    note: organization?.note ?? "",
+  });
+  const [saveState, setSaveState] = useState<SaveState>(EMPTY_SAVE_STATE);
+
+  function update<K extends keyof OrganizationDraft>(key: K, value: OrganizationDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submit() {
+    if (!draft.name.trim()) {
+      setSaveState({ error: "请先填写组织名称。", saving: false, success: "" });
+      return;
+    }
+
+    setSaveState({ error: "", saving: true, success: "" });
+    try {
+      const payload = {
+        name: draft.name.trim(),
+        type: draft.type.trim() || "实验室",
+        websiteUrl: draft.websiteUrl.trim(),
+        note: draft.note.trim(),
+      };
+      if (mode === "edit" && organization) {
+        await onPatch(organization.id, payload);
+      } else {
+        await onCreate(payload);
+      }
+      setSaveState({ error: "", saving: false, success: "已保存" });
+      onClose();
+    } catch (error) {
+      setSaveState({
+        error: error instanceof Error ? error.message : "组织保存失败",
+        saving: false,
+        success: "",
+      });
+    }
+  }
+
+  return (
+    <div className="drawer-layer">
+      <button className="drawer-backdrop" aria-label="关闭组织编辑" onClick={onClose} type="button" />
+      <aside className="person-drawer update-drawer organization-drawer" aria-label={mode === "edit" ? "编辑组织" : "新增组织"}>
+        <div className="drawer-header">
+          <div>
+            <span>{mode === "edit" ? "编辑已有组织" : "手动添加组织"}</span>
+            <h2>{mode === "edit" ? "编辑组织" : "新增组织"}</h2>
+          </div>
+          <button className="button ghost" onClick={onClose} type="button">
+            关闭
+          </button>
+        </div>
+        <div className="drawer-form">
+          <Field label="组织名称" onChange={(value) => update("name", value)} value={draft.name} />
+          <label className="field-label">
+            组织类型
+            <select onChange={(event) => update("type", event.target.value)} value={draft.type}>
+              {ORGANIZATION_TYPES.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <Field label="官网 / 主页 URL" onChange={(value) => update("websiteUrl", value)} value={draft.websiteUrl} />
+          <label className="field-label">
+            组织备注 / 当前判断
+            <textarea
+              onChange={(event) => update("note", event.target.value.slice(0, 600))}
+              placeholder="记录这个实验室为什么值得关注、当前跟进重点、相关人物或资料状态。"
+              rows={8}
+              value={draft.note}
+            />
+          </label>
+          {saveState.error && <p className="form-error">{saveState.error}</p>}
+        </div>
+        <div className="drawer-actions">
+          <button className="button" disabled={saveState.saving} onClick={onClose} type="button">
+            取消
+          </button>
+          <button className="button primary" disabled={saveState.saving} onClick={submit} type="button">
+            {saveState.saving ? "保存中..." : "保存组织"}
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
 }
 
 function PeopleView({

@@ -1,7 +1,13 @@
 import * as memoryStore from "./research-pool-store";
 import * as supabaseStore from "./supabase-research-pool-store";
 import { isSupabaseConfigured } from "./supabase-config";
-import type { DashboardBrief, NextStep, Person, WorkUpdate } from "./research-pool-types";
+import type {
+  DashboardBrief,
+  NextStep,
+  Person,
+  ResearchOrganization,
+  WorkUpdate,
+} from "./research-pool-types";
 import type { CurrentUser } from "./server-auth";
 
 type PersonPatchPayload = {
@@ -31,6 +37,10 @@ type DashboardBriefPayload = {
 
 type NextStepPayload = {
   step: Partial<NextStep>;
+};
+
+type OrganizationPayload = {
+  organization: Partial<ResearchOrganization>;
 };
 
 function usingSupabase() {
@@ -153,31 +163,34 @@ export async function importPeopleFromCsv(csv: string, user: CurrentUser) {
 }
 
 export async function listOrganizations() {
-  if (usingSupabase()) {
-    return supabaseStore.listOrganizations();
-  }
+  return usingSupabase()
+    ? supabaseStore.listOrganizations()
+    : memoryStore.listOrganizations();
+}
 
-  const people = memoryStore.listPeople();
-  const organizations = new Map<string, { id: string; name: string; type: string; sourceCount: number }>();
-  for (const person of people) {
-    for (const [name, type] of [
-      [person.institution, "school"],
-      [person.lab, "lab"],
-    ] as const) {
-      if (!name) continue;
-      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const existing = organizations.get(id);
-      organizations.set(id, {
-        id,
-        name,
-        type,
-        sourceCount: (existing?.sourceCount ?? 0) + 1,
-      });
-    }
-  }
-  return [...organizations.values()].sort((left, right) =>
-    left.name.localeCompare(right.name),
-  );
+export async function createOrganization(
+  payload: OrganizationPayload,
+  user: CurrentUser,
+) {
+  return usingSupabase()
+    ? supabaseStore.createOrganization(payload, user)
+    : memoryStore.createOrganization(payload, user);
+}
+
+export async function patchOrganization(
+  id: string,
+  payload: OrganizationPayload,
+  user: CurrentUser,
+) {
+  return usingSupabase()
+    ? supabaseStore.patchOrganization(id, payload, user)
+    : memoryStore.patchOrganization(id, payload, user);
+}
+
+export async function deleteOrganization(id: string, user: CurrentUser) {
+  return usingSupabase()
+    ? supabaseStore.deleteOrganization(id, user)
+    : memoryStore.deleteOrganization(id, user);
 }
 
 export function resetResearchPoolState(user: CurrentUser) {
@@ -186,4 +199,3 @@ export function resetResearchPoolState(user: CurrentUser) {
   }
   return memoryStore.resetResearchPoolState(user);
 }
-

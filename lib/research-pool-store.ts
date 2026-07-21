@@ -11,6 +11,7 @@ import type {
   NextStep,
   Person,
   Priority,
+  ResearchOrganization,
   ResearchPoolState,
   ResearchStatus,
   UpdateType,
@@ -50,6 +51,10 @@ type DashboardBriefPayload = {
 
 type NextStepPayload = {
   step: Partial<NextStep>;
+};
+
+type OrganizationPayload = {
+  organization: Partial<ResearchOrganization>;
 };
 
 const validRoles: UserRole[] = ["Admin", "Editor", "Commenter", "Viewer"];
@@ -118,6 +123,27 @@ function sortNextSteps(steps: NextStep[]) {
       left.sortOrder - right.sortOrder ||
       left.createdAt.localeCompare(right.createdAt),
   );
+}
+
+function organizationSourceCount(name: string) {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return 0;
+  return state.people.filter((person) => person.lab.trim().toLowerCase() === normalized).length;
+}
+
+function normalizeOrganization(organization: Partial<ResearchOrganization>): ResearchOrganization {
+  const stamp = nowStamp();
+  const name = organization.name?.trim() || "未命名组织";
+  return {
+    id: organization.id || slugify(name),
+    name,
+    type: organization.type?.trim() || "实验室",
+    websiteUrl: organization.websiteUrl?.trim() || "",
+    note: organization.note?.trim() || "",
+    sourceCount: organizationSourceCount(name),
+    createdAt: organization.createdAt || stamp,
+    updatedAt: stamp,
+  };
 }
 
 function parseCsv(text: string) {
@@ -193,6 +219,82 @@ export function resetResearchPoolState(user: CurrentUser) {
 
 export function listPeople() {
   return clone(state.people);
+}
+
+export function listOrganizations() {
+  return clone(
+    state.organizations
+      .filter((organization) => organization.type !== "school")
+      .map((organization) => ({
+        ...organization,
+        sourceCount: organizationSourceCount(organization.name),
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
+  );
+}
+
+export function createOrganization(payload: OrganizationPayload, user: CurrentUser) {
+  const saved = normalizeOrganization(payload.organization);
+  state.organizations = [
+    saved,
+    ...state.organizations.filter((organization) => organization.id !== saved.id),
+  ];
+  appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "新增组织",
+    targetType: "organization",
+    targetId: saved.id,
+    summary: `${user.name} 新增了组织：${saved.name}。`,
+  });
+  return clone(saved);
+}
+
+export function patchOrganization(
+  id: string,
+  payload: OrganizationPayload,
+  user: CurrentUser,
+) {
+  const index = state.organizations.findIndex((organization) => organization.id === id);
+  if (index === -1) {
+    return null;
+  }
+  const before = state.organizations[index];
+  const saved = normalizeOrganization(
+    {
+      ...before,
+      ...payload.organization,
+      id: before.id,
+      createdAt: before.createdAt,
+    },
+  );
+  state.organizations[index] = saved;
+  appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "更新组织",
+    targetType: "organization",
+    targetId: saved.id,
+    summary: `${user.name} 更新了组织：${saved.name}。`,
+  });
+  return clone(saved);
+}
+
+export function deleteOrganization(id: string, user: CurrentUser) {
+  const organization = state.organizations.find((item) => item.id === id);
+  if (!organization) {
+    return null;
+  }
+  state.organizations = state.organizations.filter((item) => item.id !== id);
+  appendActivity({
+    actor: user.name,
+    actorRole: user.role,
+    action: "删除组织",
+    targetType: "organization",
+    targetId: organization.id,
+    summary: `${user.name} 删除了组织：${organization.name}。`,
+  });
+  return clone(organization);
 }
 
 export function getPerson(id: string) {

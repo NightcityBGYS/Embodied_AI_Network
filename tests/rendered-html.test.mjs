@@ -48,10 +48,11 @@ test("project metadata no longer references the starter preview", async () => {
 });
 
 test("REST API exposes simplified people, dashboard, updates and activity logs", async () => {
-  const [people, activities, updates, brief, nextSteps] = await Promise.all([
+  const [people, activities, updates, organizations, brief, nextSteps] = await Promise.all([
     render("/api/people"),
     render("/api/activity-logs"),
     render("/api/updates"),
+    render("/api/organizations"),
     render("/api/dashboard/brief"),
     render("/api/dashboard/next-steps"),
   ]);
@@ -59,12 +60,14 @@ test("REST API exposes simplified people, dashboard, updates and activity logs",
   assert.equal(people.status, 200);
   assert.equal(activities.status, 200);
   assert.equal(updates.status, 200);
+  assert.equal(organizations.status, 200);
   assert.equal(brief.status, 200);
   assert.equal(nextSteps.status, 200);
 
   const peopleBody = await people.json();
   const activitiesBody = await activities.json();
   const updatesBody = await updates.json();
+  const organizationsBody = await organizations.json();
   const briefBody = await brief.json();
   const nextStepsBody = await nextSteps.json();
 
@@ -84,10 +87,27 @@ test("REST API exposes simplified people, dashboard, updates and activity logs",
   assert.ok(typeof updatesBody.updates[0].updateType === "string");
   assert.ok(typeof updatesBody.updates[0].title === "string");
   assert.ok(typeof updatesBody.updates[0].occurredAt === "string");
+  assert.ok(Array.isArray(organizationsBody.organizations));
+  assert.ok(organizationsBody.organizations.some((organization) => organization.name === "H2X Lab"));
+  assert.ok(typeof organizationsBody.organizations[0].note === "string");
   assert.ok(typeof briefBody.brief.title === "string");
   assert.ok(Array.isArray(briefBody.brief.focusAreas));
   assert.ok(Array.isArray(nextStepsBody.nextSteps));
   assert.ok(typeof nextStepsBody.nextSteps[0].content === "string");
+});
+
+test("organizations directory renders specific organization cards", async () => {
+  const response = await render("/organizations");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /组织目录/);
+  assert.match(html, /研究组织名单/);
+  assert.match(html, /H2X Lab/);
+  assert.match(html, /Collaborative Autonomy Group/);
+  assert.match(html, /新增组织/);
+  assert.match(html, /关联人员/);
+  assert.doesNotMatch(html, /Boston University<\/h2>/);
 });
 
 test("people directory renders read-only management summary", async () => {

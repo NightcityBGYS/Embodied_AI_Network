@@ -1740,6 +1740,180 @@ summary:focus-visible {
   gap: 11px;
 }
 
+.organization-page {
+  margin: 0 auto;
+  max-width: 1540px;
+}
+
+.organization-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.organization-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.organization-card {
+  background: linear-gradient(180deg, #ffffff, #fbfcff);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(23, 32, 51, 0.045);
+  display: grid;
+  gap: 14px;
+  min-height: 286px;
+  padding: 18px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.organization-card:hover {
+  border-color: #c5d3e6;
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.organization-card-head {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.organization-card h2 {
+  font-size: 21px;
+  line-height: 1.2;
+  margin: 8px 0 0;
+}
+
+.org-type-pill {
+  background: #eef4ff;
+  border: 1px solid #d7e5ff;
+  border-radius: 999px;
+  color: #2a5db5;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 8px;
+}
+
+.organization-note {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-left: 3px solid #8bb6ff;
+  border-radius: 8px;
+  color: #334155;
+  line-height: 1.55;
+  margin: 0;
+  min-height: 72px;
+  padding: 12px;
+}
+
+.organization-note.muted {
+  color: var(--muted);
+}
+
+.organization-facts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.organization-facts span,
+.organization-facts a {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.organization-facts strong {
+  color: var(--foreground);
+}
+
+.organization-facts a {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.organization-section {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.organization-section > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.organization-section p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.organization-person-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.organization-person-list span,
+.organization-person-list em {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #475569;
+  font-size: 12px;
+  font-style: normal;
+  padding: 4px 8px;
+}
+
+.organization-update-list {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.organization-update-list li {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 42px minmax(0, 1fr);
+}
+
+.organization-update-list small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.organization-update-list strong {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.organization-drawer textarea {
+  min-height: 156px;
+}
+
 .person-list-card {
   background: linear-gradient(180deg, #ffffff, #fbfcff);
   border: 1px solid var(--line);
@@ -3040,12 +3214,13 @@ summary:focus-visible {
 	  .dashboard-two-col,
 	  .brief-hero,
 	  .brief-main-grid,
-	  .brief-summary-bar,
-	  .update-filter-row,
-	  .issue-card,
-	  .person-list-main {
-	    grid-template-columns: 1fr;
-	  }
+		  .brief-summary-bar,
+		  .update-filter-row,
+		  .issue-card,
+		  .organization-grid,
+		  .person-list-main {
+		    grid-template-columns: 1fr;
+		  }
 
   .brief-summary-bar div + div {
     border-left: 0;
@@ -3112,9 +3287,10 @@ summary:focus-visible {
     flex: 1;
   }
 
-	  .directory-toolbar,
-	  .compact-stats,
-	  .progress-strip,
+		  .directory-toolbar,
+		  .compact-stats,
+		  .organization-metrics,
+		  .progress-strip,
 	  .pool-summary,
 	  .attention-grid,
 	  .filter-grid,

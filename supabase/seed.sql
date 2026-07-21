@@ -33,6 +33,25 @@ set content = excluded.content,
     completed = excluded.completed,
     sort_order = excluded.sort_order;
 
+insert into public.organizations (name, organization_type, website_url, note)
+values
+  (
+    'H2X Lab',
+    '实验室',
+    '',
+    'BU 具身感知、VLA、自动驾驶评测和真实环境泛化方向的重点实验室线索。当前重点关联 Eshed Ohn-Bar、Kamran Vakil 及 H2X 学生网络。'
+  ),
+  (
+    'Collaborative Autonomy Group',
+    '实验室',
+    '',
+    'Alyssa Pierson 领导的多机器人协作、自主规划、人机协作和异构机器人团队研究线索。适合作为多机器人 Benchmark 与产业连接的重点组织。'
+  )
+on conflict (name) do update
+set organization_type = excluded.organization_type,
+    website_url = excluded.website_url,
+    note = excluded.note;
+
 insert into public.people (
   id,
   name,
@@ -165,4 +184,3 @@ set update_type = excluded.update_type,
     linked_organization = excluded.linked_organization,
     author_name = excluded.author_name,
     occurred_at = excluded.occurred_at;
-

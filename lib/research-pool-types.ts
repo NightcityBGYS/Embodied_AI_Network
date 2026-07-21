@@ -42,7 +42,7 @@ export type ActivityLog = {
   actor: string;
   actorRole: UserRole;
   action: string;
-  targetType: "person" | "system";
+  targetType: "person" | "organization" | "system";
   targetId?: string;
   summary: string;
   before?: string;
@@ -89,6 +89,17 @@ export type NextStep = {
   content: string;
   completed: boolean;
   sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ResearchOrganization = {
+  id: string;
+  name: string;
+  type: string;
+  websiteUrl: string;
+  note: string;
+  sourceCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -151,6 +162,7 @@ export type Person = {
 
 export type ResearchPoolState = {
   people: Person[];
+  organizations: ResearchOrganization[];
   activities: ActivityLog[];
   updates: WorkUpdate[];
   dashboardBrief: DashboardBrief;

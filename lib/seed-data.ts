@@ -6,6 +6,7 @@ import type {
   NextStep,
   Person,
   Priority,
+  ResearchOrganization,
   ResearchPoolState,
   ResearchStatus,
   WorkUpdate,
@@ -657,8 +658,32 @@ export const seedNextSteps: NextStep[] = [
   },
 ];
 
+export const seedOrganizations: ResearchOrganization[] = [
+  {
+    id: "h2x-lab",
+    name: "H2X Lab",
+    type: "实验室",
+    websiteUrl: "",
+    note: "BU 具身感知、VLA、自动驾驶评测和真实环境泛化方向的重点实验室线索。当前重点关联 Eshed Ohn-Bar、Kamran Vakil 及 H2X 学生网络。",
+    sourceCount: 0,
+    createdAt: "2026-07-17 11:05",
+    updatedAt: "2026-07-17 11:05",
+  },
+  {
+    id: "collaborative-autonomy-group",
+    name: "Collaborative Autonomy Group",
+    type: "实验室",
+    websiteUrl: "",
+    note: "Alyssa Pierson 领导的多机器人协作、自主规划、人机协作和异构机器人团队研究线索。适合作为多机器人 Benchmark 与产业连接的重点组织。",
+    sourceCount: 0,
+    createdAt: "2026-07-17 11:05",
+    updatedAt: "2026-07-17 11:05",
+  },
+];
+
 export const seedResearchPoolState: ResearchPoolState = {
   people: seedPeople,
+  organizations: seedOrganizations,
   activities: seedActivities,
   updates: seedUpdates,
   dashboardBrief: seedDashboardBrief,
