@@ -91,7 +91,7 @@ export type NextStepDraft = Pick<NextStep, "id" | "content" | "completed" | "sor
   deleted?: boolean;
 };
 
-export type OrganizationDraft = Pick<ResearchOrganization, "name" | "type" | "websiteUrl" | "note">;
+export type OrganizationDraft = Pick<ResearchOrganization, "name" | "type" | "priority" | "websiteUrl" | "note">;
 
 export type SaveState = {
   error: string;
@@ -133,6 +133,12 @@ export const roleLabels: Record<string, string> = {
 };
 
 export const SIMPLE_PRIORITIES = ["S", "A", "B", "C"] as const;
+export const PRIORITY_WEIGHT: Record<(typeof SIMPLE_PRIORITIES)[number], number> = {
+  S: 0,
+  A: 1,
+  B: 2,
+  C: 3,
+};
 export const PROGRESS_STATUSES = [
   "待调研",
   "待联系",
@@ -182,6 +188,69 @@ export function normalizePriority(value = "") {
     return "C";
   }
   return "C";
+}
+
+export function normalizeOrganizationPriority(organization: Partial<ResearchOrganization>) {
+  const explicit = String(organization.priority ?? "").trim().toUpperCase();
+  if ((SIMPLE_PRIORITIES as readonly string[]).includes(explicit)) {
+    return explicit;
+  }
+
+  const name = String(organization.name ?? "").trim().toLowerCase();
+  if (name === "h2x lab") {
+    return "S";
+  }
+  if (name === "collaborative autonomy group" || name === "cag") {
+    return "B";
+  }
+  return "B";
+}
+
+export function normalizeOrganization(
+  organization: Partial<ResearchOrganization>,
+): ResearchOrganization {
+  const stamp = nowStamp();
+  const name = organization.name?.trim() || "未命名组织";
+  return {
+    id: organization.id || slugify(name),
+    name,
+    type: organization.type?.trim() || "实验室",
+    priority: normalizeOrganizationPriority({ ...organization, name }),
+    websiteUrl: organization.websiteUrl?.trim() || "",
+    note: organization.note?.trim() || "",
+    sourceCount: organization.sourceCount ?? 0,
+    createdAt: organization.createdAt || stamp,
+    updatedAt: organization.updatedAt || stamp,
+  };
+}
+
+export function compareByPriority(left: string, right: string) {
+  return (
+    (PRIORITY_WEIGHT[normalizePriority(left) as keyof typeof PRIORITY_WEIGHT] ?? 9) -
+    (PRIORITY_WEIGHT[normalizePriority(right) as keyof typeof PRIORITY_WEIGHT] ?? 9)
+  );
+}
+
+export function sortPeopleByPriority(people: Person[]) {
+  const statusRank = new Map(PROGRESS_STATUSES.map((status, index) => [status, index]));
+  return [...people].sort(
+    (left, right) =>
+      compareByPriority(left.priority, right.priority) ||
+      (statusRank.get(normalizeProgressStatus(left.researchStatus)) ?? 99) -
+        (statusRank.get(normalizeProgressStatus(right.researchStatus)) ?? 99) ||
+      right.updatedAt.localeCompare(left.updatedAt) ||
+      right.lastModifiedAt.localeCompare(left.lastModifiedAt) ||
+      left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
+  );
+}
+
+export function sortOrganizationsByPriority(organizations: ResearchOrganization[]) {
+  return [...organizations].sort(
+    (left, right) =>
+      compareByPriority(left.priority, right.priority) ||
+      right.updatedAt.localeCompare(left.updatedAt) ||
+      left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
+  );
 }
 
 export function normalizeProgressStatus(value = "") {

@@ -37,6 +37,7 @@ create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text unique not null,
   organization_type text not null default 'organization',
+  priority text not null default 'B' check (priority in ('S', 'A', 'B', 'C')),
   website_url text not null default '',
   note text not null default '',
   source_count integer not null default 0,
@@ -164,6 +165,7 @@ create table if not exists public.activity_logs (
 
 create index if not exists people_archived_idx on public.people (archived);
 create index if not exists people_priority_idx on public.people (priority);
+create index if not exists organizations_priority_idx on public.organizations (priority);
 create index if not exists people_topics_idx on public.people using gin (research_topics);
 create index if not exists updates_occurred_idx on public.updates (occurred_at desc);
 create index if not exists updates_type_idx on public.updates (update_type);

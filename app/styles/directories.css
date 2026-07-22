@@ -369,6 +369,13 @@
   padding: 3px 8px;
 }
 
+.org-badge-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .organization-note {
   background: #f8fafc;
   border: 1px solid var(--line);
@@ -492,6 +499,11 @@
 
 .organization-drawer textarea {
   min-height: 156px;
+}
+
+.organization-import-panel {
+  display: grid;
+  gap: 12px;
 }
 
 .person-list-card {

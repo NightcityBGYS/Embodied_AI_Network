@@ -21,6 +21,10 @@
 		    grid-template-columns: 1fr;
 		  }
 
+  .brief-side-column {
+    position: static;
+  }
+
   .brief-summary-bar div + div {
     border-left: 0;
     border-top: 1px solid var(--line);

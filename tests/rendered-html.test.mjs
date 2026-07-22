@@ -123,7 +123,7 @@ test("people directory renders read-only management summary", async () => {
   assert.match(html, /按添加时间/);
   assert.match(html, /按名字首字母/);
   assert.match(html, /按优先级/);
-  assert.match(html, /S-A-B-C/);
+  assert.match(html, /S → A → B → C/);
   assert.doesNotMatch(html, /Eric 判断/);
   assert.doesNotMatch(html, /实验室待补充/);
   assert.doesNotMatch(html, /当前阶段/);
@@ -141,8 +141,8 @@ test("dashboard renders research brief and daily work records", async () => {
   const html = await response.text();
   assert.match(html, /实时工作简报/);
   assert.match(html, /今日与本周摘要/);
-  assert.match(html, /每日工作记录/);
-  assert.match(html, /最近7天/);
+  assert.match(html, /最近工作记录/);
+  assert.match(html, /最近记录/);
   assert.match(html, /最新判断/);
   assert.match(html, /编辑简报/);
   assert.match(html, /新增判断/);

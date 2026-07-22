@@ -34,12 +34,15 @@ import {
   formatTimeLabel,
   initialPerson,
   initials,
-  isRecentDays,
   isThisWeek,
   isToday,
   normalizePerson,
+  normalizeOrganization,
+  normalizeOrganizationPriority,
   normalizePriority,
   normalizeProgressStatus,
+  sortOrganizationsByPriority,
+  sortPeopleByPriority,
   roleLabels,
   slugify,
   splitList,
@@ -335,7 +338,7 @@ export function ResearchPoolApp({
 
       setState({
         people: peopleData.people.map(normalizePerson),
-        organizations: organizationsData.organizations,
+        organizations: organizationsData.organizations.map(normalizeOrganization),
         activities: activitiesData.activities,
         updates: updatesData.updates,
         dashboardBrief: briefData.brief,
@@ -353,7 +356,7 @@ export function ResearchPoolApp({
 
       setState({
         people: seedResearchPoolState.people.map(normalizePerson),
-        organizations: seedResearchPoolState.organizations,
+        organizations: seedResearchPoolState.organizations.map(normalizeOrganization),
         activities: seedResearchPoolState.activities,
         updates: seedResearchPoolState.updates,
         dashboardBrief: seedResearchPoolState.dashboardBrief,
@@ -1366,9 +1369,11 @@ function DashboardView({
   const latestUpdate = sortedUpdates[0];
   const todayUpdates = sortedUpdates.filter((update) => isToday(update.occurredAt));
   const weekUpdates = sortedUpdates.filter((update) => isThisWeek(update.occurredAt));
-  const visibleUpdates = sortedUpdates.filter((update) =>
-    range === "today" ? isToday(update.occurredAt) : isRecentDays(update.occurredAt, 7),
-  );
+  const visibleUpdates = sortedUpdates
+    .filter((update) =>
+      range === "today" ? isToday(update.occurredAt) : true,
+    )
+    .slice(0, 6);
   const latestInsights = sortedUpdates
     .filter((update) => update.insight.trim())
     .slice(0, 3);
@@ -1410,7 +1415,7 @@ function DashboardView({
             )}
           </div>
           <h1>{brief.title}</h1>
-          <p>{brief.description}</p>
+          <p className="brief-text">{brief.description.replace(/\\n/g, "\n")}</p>
           {brief.focusAreas.length > 0 && (
             <div className="focus-area-row" aria-label="关注方向">
               {brief.focusAreas.map((area) => (
@@ -1453,8 +1458,8 @@ function DashboardView({
         <section className="dashboard-section timeline-section">
           <div className="panel-heading">
             <div>
-              <h2>每日工作记录</h2>
-              <span>{range === "today" ? "只看今天" : "最近 7 天"}</span>
+              <h2>最近工作记录</h2>
+              <span>{range === "today" ? "今天摘要" : "最近 6 条摘要"}</span>
             </div>
             <div className="segmented-actions" aria-label="工作记录范围">
               <button
@@ -1469,7 +1474,7 @@ function DashboardView({
                 onClick={() => setRange("recent")}
                 type="button"
               >
-                最近7天
+                最近记录
               </button>
               <button onClick={() => onNavigate("updates")} type="button">
                 查看全部记录
@@ -1478,6 +1483,7 @@ function DashboardView({
           </div>
           <UpdateTimeline
             canEdit={canEdit}
+            compact
             emptyMessage="点击“记录进展”补充今天完成的工作。"
             emptyTitle="暂无工作记录"
             onDelete={onDeleteUpdate}
@@ -1489,6 +1495,28 @@ function DashboardView({
         </section>
 
         <aside className="brief-side-column">
+          <section className="dashboard-section side-brief-card">
+            <div className="panel-heading">
+              <div>
+                <h2>下一步</h2>
+                <span>本周方向</span>
+              </div>
+              {canEdit && (
+                <button className="link-button" onClick={() => setNextStepsDrawerOpen(true)} type="button">
+                  编辑
+                </button>
+              )}
+            </div>
+            {visibleNextSteps.length > 0 ? (
+              <ul className="next-list">
+                {visibleNextSteps.map((step) => (
+                  <li key={step.id}>{step.content}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted-text">暂无未完成计划。</p>
+            )}
+          </section>
           <section className="dashboard-section side-brief-card">
             <div className="panel-heading">
               <div>
@@ -1557,34 +1585,18 @@ function DashboardView({
                         </a>
                       ) : null}
                     </div>
-                    <span>{update.insight}</span>
+                    <button
+                      className="insight-body"
+                      onClick={() => setDrawer({ mode: "edit", source: update })}
+                      type="button"
+                    >
+                      {update.insight}
+                    </button>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="muted-text">暂无可展示的研究判断。</p>
-            )}
-          </section>
-          <section className="dashboard-section side-brief-card">
-            <div className="panel-heading">
-              <div>
-                <h2>下一步</h2>
-                <span>本周方向</span>
-              </div>
-              {canEdit && (
-                <button className="link-button" onClick={() => setNextStepsDrawerOpen(true)} type="button">
-                  编辑
-                </button>
-              )}
-            </div>
-            {visibleNextSteps.length > 0 ? (
-              <ul className="next-list">
-                {visibleNextSteps.map((step) => (
-                  <li key={step.id}>{step.content}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted-text">暂无未完成计划。</p>
             )}
           </section>
         </aside>
@@ -1759,6 +1771,7 @@ function UpdatesView({
 
 function UpdateTimeline({
   canEdit,
+  compact = false,
   emptyMessage,
   emptyTitle,
   onDelete,
@@ -1768,6 +1781,7 @@ function UpdateTimeline({
   updates,
 }: {
   canEdit: boolean;
+  compact?: boolean;
   emptyMessage: string;
   emptyTitle: string;
   onDelete: (updateId: string) => Promise<void> | void;
@@ -1808,7 +1822,7 @@ function UpdateTimeline({
             const hasLinks = Boolean(update.linkedPerson || organization || update.feishuUrl);
 
             return (
-              <article className="timeline-item" key={update.id}>
+              <article className={compact ? "timeline-item compact" : "timeline-item"} key={update.id}>
                 <div className="timeline-item-head">
                   <div className="timeline-meta">
                     <span className="update-type">{update.updateType}</span>
@@ -1841,14 +1855,18 @@ function UpdateTimeline({
                     </details>
                   )}
                 </div>
-                <h4>{update.title}</h4>
-                {summary && <p className="timeline-summary">{summary}</p>}
+                {!compact && <h4>{update.title}</h4>}
+                {summary && (
+                  <p className="timeline-summary">
+                    {compact ? summarizeCoreChange(update, summary) : summary}
+                  </p>
+                )}
                 {showInsight && update.insight && <blockquote>判断：{update.insight}</blockquote>}
                 {hasLinks && (
                   <div className="update-links">
                     {update.linkedPerson && <span>{update.linkedPerson}</span>}
                     {organization && <span>{organization}</span>}
-                    {update.feishuUrl && (
+                    {update.feishuUrl && !compact && (
                       <a href={update.feishuUrl} rel="noreferrer" target="_blank">
                         飞书 ↗
                       </a>
@@ -2262,6 +2280,15 @@ function sortWorkUpdates(updates: WorkUpdate[]) {
   return [...updates].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
 }
 
+function summarizeCoreChange(update: WorkUpdate, summary: string) {
+  const priorityMatch = summary.match(/优先级从\s*([SABC])\s*调整为\s*([SABC])/);
+  const target = update.linkedPerson || update.linkedOrganization || update.title.replace(/^调整优先级[:：]\s*/, "");
+  if (priorityMatch) {
+    return `${target}：${priorityMatch[1]} → ${priorityMatch[2]}`;
+  }
+  return summary;
+}
+
 function groupWorkUpdates(updates: WorkUpdate[]) {
   return updates.reduce<Array<{ date: string; items: WorkUpdate[] }>>((groups, update) => {
     const date = update.occurredAt.slice(0, 10);
@@ -2286,6 +2313,51 @@ function updateMatchesFilters(update: WorkUpdate, filters: UpdateFilters) {
       update.linkedPerson.toLowerCase().includes(personQuery) ||
       (update.linkedPersonId ?? "").toLowerCase().includes(personQuery)) &&
     (!orgQuery || update.linkedOrganization.toLowerCase().includes(orgQuery))
+  );
+}
+
+function parseCsvRows(text: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(cell.trim());
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (cell || row.length) {
+        row.push(cell.trim());
+        rows.push(row);
+        row = [];
+        cell = "";
+      }
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell.trim());
+    rows.push(row);
+  }
+  const [headers = [], ...records] = rows;
+  return records.map((record) =>
+    headers.reduce<Record<string, string>>((accumulator, header, index) => {
+      accumulator[header.trim()] = record[index] ?? "";
+      return accumulator;
+    }, {}),
   );
 }
 
@@ -2350,12 +2422,17 @@ function OrganizationsView({
 }) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("全部");
+  const [priorityFilter, setPriorityFilter] = useState("全部");
+  const [csvOpen, setCsvOpen] = useState(false);
+  const [organizationCsv, setOrganizationCsv] = useState("");
   const [drawer, setDrawer] = useState<{
     mode: "create" | "edit";
     source?: ResearchOrganization;
   } | null>(null);
 
-  const concreteOrganizations = organizations.filter((organization) => organization.type !== "school");
+  const concreteOrganizations = sortOrganizationsByPriority(
+    organizations.map(normalizeOrganization).filter((organization) => organization.type !== "school"),
+  );
   const organizationTypes = unique([
     ...ORGANIZATION_TYPES,
     ...concreteOrganizations.map((organization) => organization.type),
@@ -2381,7 +2458,10 @@ function OrganizationsView({
       .toLowerCase();
     const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
     const matchesType = typeFilter === "全部" || organization.type === typeFilter;
-    return matchesQuery && matchesType;
+    const matchesPriority =
+      priorityFilter === "全部" ||
+      normalizeOrganizationPriority(organization) === priorityFilter;
+    return matchesQuery && matchesType && matchesPriority;
   });
 
   async function confirmDelete(organization: ResearchOrganization) {
@@ -2392,6 +2472,53 @@ function OrganizationsView({
       return;
     }
     await onDelete(organization.id);
+  }
+
+  function exportOrganizationsCsv() {
+    const rows = visibleOrganizations.map((organization) => ({
+      name: organization.name,
+      type: organization.type,
+      priority: normalizeOrganizationPriority(organization),
+      website_url: organization.websiteUrl,
+      note: organization.note,
+      source_count: organization.sourceCount,
+      updated_at: organization.updatedAt,
+    }));
+    const headers = Object.keys(rows[0] ?? { name: "", type: "", priority: "" });
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) =>
+        headers
+          .map((header) => csvEscape(String(row[header as keyof typeof row] ?? "")))
+          .join(","),
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `具身智能研究组织-${todayDate()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importOrganizationsCsv() {
+    if (!canEdit || !organizationCsv.trim()) {
+      return;
+    }
+    const records = parseCsvRows(organizationCsv);
+    for (const record of records) {
+      if (!record.name?.trim()) continue;
+      await onCreate({
+        name: record.name.trim(),
+        type: record.type?.trim() || record.organization_type?.trim() || "实验室",
+        priority: normalizeOrganizationPriority({ name: record.name, priority: record.priority }),
+        websiteUrl: record.website_url?.trim() || record.websiteUrl?.trim() || "",
+        note: record.note?.trim() || "",
+      });
+    }
+    setOrganizationCsv("");
+    setCsvOpen(false);
   }
 
   return (
@@ -2441,8 +2568,38 @@ function OrganizationsView({
               新增组织
             </button>
           )}
+          <button className="button" onClick={exportOrganizationsCsv} type="button">
+            导出 CSV
+          </button>
+          {canEdit && (
+            <button className="button" onClick={() => setCsvOpen((open) => !open)} type="button">
+              导入 CSV
+            </button>
+          )}
         </div>
       </section>
+
+      {csvOpen && (
+        <section className="dashboard-section organization-import-panel">
+          <label className="field-label">
+            组织 CSV
+            <textarea
+              onChange={(event) => setOrganizationCsv(event.target.value)}
+              placeholder="name,type,priority,website_url,note&#10;H2X Lab,实验室,S,,重点组织"
+              rows={5}
+              value={organizationCsv}
+            />
+          </label>
+          <div className="button-row">
+            <button className="button" onClick={() => setCsvOpen(false)} type="button">
+              取消
+            </button>
+            <button className="button primary" onClick={() => void importOrganizationsCsv()} type="button">
+              导入组织
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="quick-filter-row" aria-label="组织类型筛选">
         <span className="quick-filter-label">类型</span>
@@ -2458,6 +2615,25 @@ function OrganizationsView({
               {type === "全部"
                 ? concreteOrganizations.length
                 : concreteOrganizations.filter((organization) => organization.type === type).length}
+            </strong>
+          </button>
+        ))}
+      </div>
+
+      <div className="quick-filter-row" aria-label="组织优先级筛选">
+        <span className="quick-filter-label">优先级</span>
+        {["全部", ...SIMPLE_PRIORITIES].map((priority) => (
+          <button
+            className={priorityFilter === priority ? "quick-filter active" : "quick-filter"}
+            key={priority}
+            onClick={() => setPriorityFilter(priority)}
+            type="button"
+          >
+            <span>{priority}</span>
+            <strong>
+              {priority === "全部"
+                ? concreteOrganizations.length
+                : concreteOrganizations.filter((organization) => normalizeOrganizationPriority(organization) === priority).length}
             </strong>
           </button>
         ))}
@@ -2480,7 +2656,12 @@ function OrganizationsView({
               <article className="organization-card" key={organization.id}>
                 <div className="organization-card-head">
                   <div>
-                    <span className="org-type-pill">{organization.type || "组织"}</span>
+                    <div className="org-badge-row">
+                      <span className="org-type-pill">{organization.type || "组织"}</span>
+                      <Badge tone={statusTone(normalizeOrganizationPriority(organization))}>
+                        {normalizeOrganizationPriority(organization)}
+                      </Badge>
+                    </div>
                     <h2>{organization.name}</h2>
                   </div>
                   {canEdit && (
@@ -2503,6 +2684,10 @@ function OrganizationsView({
                 </p>
 
                 <div className="organization-facts">
+                  <span>
+                    <strong>{normalizeOrganizationPriority(organization)}</strong>
+                    优先级
+                  </span>
                   <span>
                     <strong>{sourceCount}</strong>
                     关联人员
@@ -2607,6 +2792,7 @@ function OrganizationDrawer({
   const [draft, setDraft] = useState<OrganizationDraft>({
     name: organization?.name ?? "",
     type: organization?.type ?? "实验室",
+    priority: normalizeOrganizationPriority(organization ?? {}),
     websiteUrl: organization?.websiteUrl ?? "",
     note: organization?.note ?? "",
   });
@@ -2627,6 +2813,7 @@ function OrganizationDrawer({
       const payload = {
         name: draft.name.trim(),
         type: draft.type.trim() || "实验室",
+        priority: normalizeOrganizationPriority({ name: draft.name, priority: draft.priority }),
         websiteUrl: draft.websiteUrl.trim(),
         note: draft.note.trim(),
       };
@@ -2666,6 +2853,16 @@ function OrganizationDrawer({
             <select onChange={(event) => update("type", event.target.value)} value={draft.type}>
               {ORGANIZATION_TYPES.map((type) => (
                 <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field-label">
+            优先级
+            <select onChange={(event) => update("priority", event.target.value)} value={normalizeOrganizationPriority(draft)}>
+              {SIMPLE_PRIORITIES.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
               ))}
             </select>
           </label>
@@ -2749,7 +2946,7 @@ function PeopleView({
   topics: string[];
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<PeopleSortMode>("createdAt");
+  const [sortMode, setSortMode] = useState<PeopleSortMode>("priority");
   const [editingPersonId, setEditingPersonId] = useState("");
   const [editMode, setEditMode] = useState<CardEditMode>("basic");
   const [openPersonMenuId, setOpenPersonMenuId] = useState("");
@@ -2823,21 +3020,15 @@ function PeopleView({
     filters.topics.length +
     filters.priorities.length;
 
-  const priorityRank: Record<string, number> = { S: 0, A: 1, B: 2, C: 3 };
-  const sortedPeople = [...filteredPeople].sort((a, b) => {
-    if (sortMode === "name") {
-      return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
-    }
-    if (sortMode === "priority") {
-      return (
-        (priorityRank[normalizePriority(a.priority)] ?? 9) -
-          (priorityRank[normalizePriority(b.priority)] ?? 9) ||
-        b.createdAt.localeCompare(a.createdAt) ||
-        a.name.localeCompare(b.name, "en", { sensitivity: "base" })
-      );
-    }
-    return b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name, "en", { sensitivity: "base" });
-  });
+  const sortedPeople =
+    sortMode === "priority"
+      ? sortPeopleByPriority(filteredPeople)
+      : [...filteredPeople].sort((a, b) => {
+          if (sortMode === "name") {
+            return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+          }
+          return b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        });
   const displayPeople = sortedPeople;
 
   const activeFilterItems = [
@@ -2883,7 +3074,7 @@ function PeopleView({
     {
       key: "priority",
       label: "按优先级",
-      note: "S-A-B-C",
+      note: "S → A → B → C",
     },
   ];
 

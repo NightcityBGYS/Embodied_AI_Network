@@ -98,6 +98,7 @@ export type ResearchOrganization = {
   id: string;
   name: string;
   type: string;
+  priority: Priority;
   websiteUrl: string;
   note: string;
   sourceCount: number;

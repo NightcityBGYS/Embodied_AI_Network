@@ -89,6 +89,21 @@ function normalizePriority(value = ""): Priority {
   return "C";
 }
 
+function normalizeOrganizationPriority(organization: Partial<ResearchOrganization>): Priority {
+  const explicit = String(organization.priority ?? "").trim().toUpperCase();
+  if (explicit === "S" || explicit === "A" || explicit === "B" || explicit === "C") {
+    return explicit;
+  }
+  const name = String(organization.name ?? "").trim().toLowerCase();
+  if (name === "h2x lab") return "S";
+  if (name === "collaborative autonomy group" || name === "cag") return "B";
+  return "B";
+}
+
+function priorityWeight(priority: string) {
+  return { S: 0, A: 1, B: 2, C: 3 }[normalizePriority(priority)] ?? 9;
+}
+
 function normalizeUpdateType(value = ""): UpdateType {
   return validUpdateTypes.includes(value as UpdateType)
     ? (value as UpdateType)
@@ -357,6 +372,10 @@ function organizationFromRow(row: OrganizationRow, sourceCount?: number): Resear
     id: asString(row.id),
     name: asString(row.name),
     type: normalizeOrganizationType(asString(row.organization_type, "实验室")),
+    priority: normalizeOrganizationPriority({
+      name: asString(row.name),
+      priority: asString(row.priority),
+    }),
     websiteUrl: asString(row.website_url),
     note: asString(row.note),
     sourceCount: sourceCount ?? asNumber(row.source_count),
@@ -379,6 +398,7 @@ function organizationToRow(organization: Partial<ResearchOrganization>) {
   return {
     name: organization.name?.trim() || "未命名组织",
     organization_type: organization.type?.trim() || "实验室",
+    priority: normalizeOrganizationPriority(organization),
     website_url: organization.websiteUrl?.trim() || "",
     note: organization.note?.trim() || "",
   };
@@ -905,13 +925,20 @@ export async function importPeopleFromCsv(csv: string, user: CurrentUser) {
 export async function listOrganizations() {
   const [rows, sourceCounts] = await Promise.all([
     supabaseFetch<OrganizationRow[]>(
-      "/organizations?select=*&organization_type=neq.school&order=name.asc",
+      "/organizations?select=*&organization_type=neq.school",
     ),
     organizationSourceCounts(),
   ]);
-  return rows.map((row) =>
-    organizationFromRow(row, sourceCounts.get(asString(row.name).toLowerCase())),
-  );
+  return rows
+    .map((row) =>
+      organizationFromRow(row, sourceCounts.get(asString(row.name).toLowerCase())),
+    )
+    .sort(
+      (left, right) =>
+        priorityWeight(left.priority) - priorityWeight(right.priority) ||
+        right.updatedAt.localeCompare(left.updatedAt) ||
+        left.name.localeCompare(right.name),
+    );
 }
 
 export async function createOrganization(
@@ -968,14 +995,33 @@ export async function patchOrganization(
     },
   );
   const saved = organizationFromRow(rows[0]);
+  const priorityChanged = current.priority !== saved.priority;
   await appendActivity({
     actor: user.name,
     actorRole: user.role,
-    action: "更新组织",
+    action: priorityChanged ? "调整组织优先级" : "更新组织",
     targetType: "organization",
     targetId: saved.id,
-    summary: `${user.name} 更新了组织：${saved.name}。`,
+    summary: priorityChanged
+      ? `${user.name} 调整组织优先级：${saved.name}。优先级从 ${current.priority} 调整为 ${saved.priority}。`
+      : `${user.name} 更新了组织：${saved.name}。`,
+    before: priorityChanged ? current.priority : undefined,
+    after: priorityChanged ? saved.priority : undefined,
   });
+  if (priorityChanged) {
+    await appendUpdate({
+      updateType: "调整优先级",
+      title: `调整组织优先级：${saved.name}`,
+      summary: `优先级从 ${current.priority} 调整为 ${saved.priority}`,
+      insight: "",
+      linkedPersonId: undefined,
+      linkedPerson: "",
+      linkedOrganization: saved.name,
+      feishuUrl: saved.websiteUrl,
+      author: user.name,
+      occurredAt: nowStamp(),
+    });
+  }
   return saved;
 }
 

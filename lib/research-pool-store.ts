@@ -102,6 +102,21 @@ function normalizePriority(value = ""): Priority {
   return "C";
 }
 
+function normalizeOrganizationPriority(organization: Partial<ResearchOrganization>): Priority {
+  const explicit = String(organization.priority ?? "").trim().toUpperCase();
+  if (explicit === "S" || explicit === "A" || explicit === "B" || explicit === "C") {
+    return explicit;
+  }
+  const name = String(organization.name ?? "").trim().toLowerCase();
+  if (name === "h2x lab") return "S";
+  if (name === "collaborative autonomy group" || name === "cag") return "B";
+  return "B";
+}
+
+function priorityWeight(priority: string) {
+  return { S: 0, A: 1, B: 2, C: 3 }[normalizePriority(priority)] ?? 9;
+}
+
 function normalizeUpdateType(value = ""): UpdateType {
   const allowed: UpdateType[] = [
     "新增人员",
@@ -142,6 +157,7 @@ function normalizeOrganization(organization: Partial<ResearchOrganization>): Res
     id: organization.id || slugify(name),
     name,
     type: organization.type?.trim() || "实验室",
+    priority: normalizeOrganizationPriority({ ...organization, name }),
     websiteUrl: organization.websiteUrl?.trim() || "",
     note: organization.note?.trim() || "",
     sourceCount: organizationSourceCount(name),
@@ -230,10 +246,15 @@ export function listOrganizations() {
     state.organizations
       .filter((organization) => organization.type !== "school")
       .map((organization) => ({
-        ...organization,
+        ...normalizeOrganization(organization),
         sourceCount: organizationSourceCount(organization.name),
       }))
-      .sort((left, right) => left.name.localeCompare(right.name)),
+      .sort(
+        (left, right) =>
+          priorityWeight(left.priority) - priorityWeight(right.priority) ||
+          right.updatedAt.localeCompare(left.updatedAt) ||
+          left.name.localeCompare(right.name),
+      ),
   );
 }
 
@@ -273,14 +294,33 @@ export function patchOrganization(
     },
   );
   state.organizations[index] = saved;
+  const priorityChanged = before.priority !== saved.priority;
   appendActivity({
     actor: user.name,
     actorRole: user.role,
-    action: "更新组织",
+    action: priorityChanged ? "调整组织优先级" : "更新组织",
     targetType: "organization",
     targetId: saved.id,
-    summary: `${user.name} 更新了组织：${saved.name}。`,
+    summary: priorityChanged
+      ? `${user.name} 调整组织优先级：${saved.name}。优先级从 ${before.priority} 调整为 ${saved.priority}。`
+      : `${user.name} 更新了组织：${saved.name}。`,
+    before: priorityChanged ? before.priority : undefined,
+    after: priorityChanged ? saved.priority : undefined,
   });
+  if (priorityChanged) {
+    appendUpdate({
+      updateType: "调整优先级",
+      title: `调整组织优先级：${saved.name}`,
+      summary: `优先级从 ${before.priority} 调整为 ${saved.priority}`,
+      insight: "",
+      linkedPersonId: undefined,
+      linkedPerson: "",
+      linkedOrganization: saved.name,
+      feishuUrl: saved.websiteUrl,
+      author: user.name,
+      occurredAt: nowStamp(),
+    });
+  }
   return clone(saved);
 }
 
