@@ -232,7 +232,12 @@ export function compareByPriority(left: string, right: string) {
 }
 
 export function sortPeopleByPriority(people: Person[]) {
-  const statusRank = new Map(PROGRESS_STATUSES.map((status, index) => [status, index]));
+  const statusRank = new Map<string, number>(
+    [...PROGRESS_STATUSES, ...SPECIAL_PROGRESS_STATUSES].map((status, index) => [
+      status,
+      index,
+    ]),
+  );
   return [...people].sort(
     (left, right) =>
       compareByPriority(left.priority, right.priority) ||
