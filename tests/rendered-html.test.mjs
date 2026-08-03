@@ -89,6 +89,7 @@ test("REST API exposes simplified people, dashboard, updates and activity logs",
   assert.ok(typeof updatesBody.updates[0].occurredAt === "string");
   assert.ok(Array.isArray(organizationsBody.organizations));
   assert.ok(organizationsBody.organizations.some((organization) => organization.name === "H2X Lab"));
+  assert.ok(organizationsBody.organizations.some((organization) => organization.name === "Dependable Computing Lab"));
   assert.ok(typeof organizationsBody.organizations[0].note === "string");
   assert.ok(typeof briefBody.brief.title === "string");
   assert.ok(Array.isArray(briefBody.brief.focusAreas));
@@ -104,6 +105,7 @@ test("organizations directory renders specific organization cards", async () => 
   assert.match(html, /组织目录/);
   assert.match(html, /研究组织名单/);
   assert.match(html, /H2X Lab/);
+  assert.match(html, /Dependable Computing Lab/);
   assert.match(html, /Collaborative Autonomy Group/);
   assert.match(html, /新增组织/);
   assert.match(html, /补充飞书详情|飞书详情 ↗/);
@@ -117,6 +119,8 @@ test("people directory renders read-only management summary", async () => {
 
   const html = await response.text();
   assert.match(html, /待调研/);
+  assert.match(html, /Zijian Guo/);
+  assert.match(html, /SpecRLBench/);
   assert.match(html, /详情 ↗/);
   assert.match(html, /\+ 添加简短判断/);
   assert.match(html, /更换头像/);
@@ -144,6 +148,7 @@ test("dashboard renders research brief and daily work records", async () => {
   assert.match(html, /最近工作记录/);
   assert.match(html, /最近记录/);
   assert.match(html, /最新判断/);
+  assert.match(html, /Dependable Computing Lab/);
   assert.match(html, /编辑简报/);
   assert.match(html, /新增判断/);
   assert.match(html, /下一步/);

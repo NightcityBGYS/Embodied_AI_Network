@@ -81,6 +81,10 @@ export const DEFAULT_RESEARCH_TOPICS = [
   "Robot Planning",
   "Real-world Data",
   "Benchmark",
+  "Safe Reinforcement Learning",
+  "Temporal Logic",
+  "Neuro-symbolic AI",
+  "AI Safety",
 ] as const;
 
 export const DEFAULT_TAGS = [
@@ -92,6 +96,9 @@ export const DEFAULT_TAGS = [
   "BU",
   "MIT Connection",
   "Industry Connection",
+  "SpecRLBench",
+  "Safe RL",
+  "Formal Specification",
 ] as const;
 
 const today = "2026-07-17";
@@ -329,24 +336,191 @@ export const seedPeople: Person[] = [
     degree: "PhD",
     role: "Professor",
     title: "Associate Professor",
-    lab: "RASTIC",
+    lab: "Dependable Computing Lab",
     department: "Electrical and Computer Engineering",
-    bio: "研究方向包括可信自主系统、形式化方法和智能系统安全。",
+    bio: "BU ECE Associate Professor，Dependable Computing Lab PI，研究方向包括形式化方法、neuro-symbolic reasoning、AI safety 和 specification-guided imitation learning。",
     currentResearchFocus:
-      "面向可信自主与机器人系统的形式化方法和评测。",
-    researchTopics: ["Formal Methods", "Embodied Evaluation", "Autonomous Navigation"],
-    secondaryTopics: ["Robot Planning", "Sim-to-Real"],
+      "Specification-guided learning、Safe RL、Temporal Logic 与安全关键自主系统。",
+    contacts: [
+      contact("邮箱", "wenchao@bu.edu"),
+      contact("主页", "https://www.bu.edu/eng/profile/wenchao-li-ph-d/", "BU Profile"),
+      contact("主页", "https://sites.bu.edu/depend/people/", "Depend Lab People"),
+    ],
+    shortAssessment:
+      "Dependable Computing Lab 战略负责人。应在先确认 SpecRLBench 扩展需求后联系，重点讨论真实任务、语言接口、评测平台和产业应用。",
+    researchTopics: ["Formal Methods", "Embodied Evaluation", "Safe Reinforcement Learning"],
+    secondaryTopics: ["Temporal Logic", "Neuro-symbolic AI", "AI Safety"],
     researchMode: "仿真",
-    whyImportant: "与安全、验证和具身评测高度相关。",
-    priority: "高",
+    representativeProjects: [
+      "SpecRLBench",
+      "NSF CAREER: Specification-Guided Imitation Learning",
+    ],
+    benchmarks: ["SpecRLBench", "DSRL"],
+    whyImportant:
+      "实验室已经从安全 RL 方法发展到统一 Benchmark 建设，具备把复杂任务、安全要求和时间顺序形式化为可验证评测的能力。",
+    zodaRelevance:
+      "ZODA 可补充真实物体、房间场景、多模态观察、自然语言指令、评测服务器、leaderboard 和 Challenge 运营。",
+    potentialDataNeed:
+      "真实家庭物体、抓取/放置/开关/清理任务、RGB-D/视频/语言指令、长程组合任务、安全区域和多种 embodiment。",
+    benchmarkValue:
+      "适合把 SpecRLBench 从抽象仿真扩展为具身智能 Benchmark，连接自然语言、形式化规格、执行策略和过程验证。",
+    networkValue:
+      "可作为实验室路线和正式合作的升级联系人，但不建议第一轮泛泛联系 PI。",
+    recommendedApproach:
+      "先联系 Zijian Guo 或 İlker Işık 获取具体缺口，再带着 SpecRLBench-Embodied 或 Natural Language ↔ Formal Specification Benchmark 方案升级联系。",
+    interviewQuestions:
+      "SpecRLBench 下一版最希望增加哪些真实任务、观察模态、任务规格和评测基础设施？是否考虑 VLA、语言指令或真实机器人数据？",
+    priority: "A",
+    researchStatus: "待联系",
+    contactStatus: "暂不联系",
+    flags: ["重点关注", "需要上级判断", "潜在合作对象"],
+    tags: ["BU", "Benchmark Author", "SpecRLBench", "Formal Specification"],
+    nextAction: "后置联系：先从 Zijian / İlker 获取 SpecRLBench 扩展需求，再升级给 PI。",
+    managerNote:
+      "A 但后置联系。核心价值不是真实机器人数据，而是形式化规格、安全约束和可复现 Benchmark 方法论。",
+    lastVerifiedAt: "2026-08-03",
+    updatedAt: "2026-08-03",
+    adviseeIds: ["zijian-guo", "ilker-isik", "sabbir-ahmad", "chenyu-wang"],
+    sources: [
+      source("Dependable Computing Laboratory People", "https://sites.bu.edu/depend/people/"),
+      source("CAREER: Specification-Guided Imitation Learning", "https://www.bu.edu/cise/research/career-specification-guided-imitation-learning/"),
+      source("Wenchao Li BU Profile", "https://www.bu.edu/eng/profile/wenchao-li-ph-d/"),
+    ],
+  }),
+  basePerson({
+    id: "zijian-guo",
+    name: "Zijian Guo",
+    role: "PhD Student",
+    title: "PhD Student",
+    lab: "Dependable Computing Lab",
+    department: "Systems Engineering",
+    bio: "BU Systems Engineering 三年级博士生，SpecRLBench、GenZ-LTL、CCAC 和 SDT 等 specification-guided RL / Benchmark 路线的核心负责人。",
+    currentResearchFocus:
+      "Specification-guided RL、Temporal Logic、Safe RL、长程任务泛化和安全 Benchmark。",
+    contacts: [
+      contact("邮箱", "zjguo@bu.edu"),
+      contact("主页", "https://ja4822.github.io/zijianguo.github.io/", "个人主页"),
+      contact("主页", "https://github.com/BU-DEPEND-Lab/SpecRLBench", "SpecRLBench GitHub"),
+    ],
+    shortAssessment:
+      "第一优先级。SpecRLBench 第一作者，是 Dependable Computing Lab 最适合先联系的 Benchmark 构建对象。",
+    researchTopics: ["Benchmark", "Safe Reinforcement Learning", "Temporal Logic"],
+    secondaryTopics: ["Formal Methods", "Embodied Evaluation", "Robot Planning"],
+    representativeProjects: [
+      "SpecRLBench",
+      "GenZ-LTL",
+      "Constraint-Conditioned Actor-Critic",
+      "Temporal Logic Specification-Conditioned Decision Transformer",
+    ],
+    representativePublications: [
+      {
+        title: "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
+        year: "2026",
+        venue: "arXiv / under review",
+        url: "https://arxiv.org/abs/2604.24729",
+        summary:
+          "面向 specification-guided reinforcement learning 泛化能力的 Benchmark，包含 navigation、manipulation、单/多智能体、视觉和 RGB-D 等变体。",
+      },
+      {
+        title: "Temporal Logic Specification-Conditioned Decision Transformer for Offline Safe Reinforcement Learning",
+        year: "2024",
+        venue: "ICML",
+        url: "https://proceedings.mlr.press/v235/guo24j.html",
+        summary:
+          "把 Signal Temporal Logic 作为任务和安全要求输入 Decision Transformer，在离线安全强化学习基准上评测。",
+      },
+    ],
+    benchmarks: ["SpecRLBench", "DSRL", "GenZ-LTL"],
+    robotPlatforms: ["Point", "Car", "Ant", "7-DoF Panda", "Safety-Gymnasium", "panda-gym"],
+    researchMode: "仿真 + Benchmark",
+    whyImportant:
+      "他最可能知道 SpecRLBench 为什么建立、当前缺陷、下一版扩展计划和数据/任务生成中最耗时的环节。",
+    zodaRelevance:
+      "可直接讨论 ZODA 是否能支持大规模任务生成、人工审核、真实场景、多模态观察、评测服务器和 Challenge。",
+    potentialDataNeed:
+      "真实任务模板、语言指令、RGB-D/视频观察、真实物体语义、长程组合任务、安全失败轨迹和难度分层。",
+    benchmarkValue:
+      "最适合作为 SpecRLBench-Embodied 或 Natural Language ↔ Formal Specification Benchmark 的入口。",
+    networkValue:
+      "可连接 İlker Işık、Sabbir Ahmad 和 Wenchao Li，并帮助判断是否值得升级联系 PI。",
+    recommendedApproach:
+      "第一轮联系聚焦 SpecRLBench 当前局限和下一版扩展需求，不泛泛问是否缺数据。",
+    interviewQuestions:
+      "SpecRLBench 下一版最想扩展哪些环境、任务类型、自然语言接口和评测基础设施？数据生成和人工审核中最耗时的是哪一环？",
+    priority: "S",
+    researchStatus: "待联系",
+    contactStatus: "待批准联系",
+    isStarred: true,
+    flags: ["重点关注", "近期联系", "潜在合作对象"],
+    tags: ["BU", "Benchmark Author", "SpecRLBench", "Safe RL", "Formal Specification"],
+    nextAction: "为 Zijian Guo 建立第一封联系提纲，并单独精读 SpecRLBench。",
+    managerNote:
+      "第一个联系对象。目标是确认 SpecRLBench 的真实扩展缺口：任务、模态、语言、真实度、leaderboard 和 Challenge。",
+    followUpDate: "2026-08-06",
+    advisorIds: ["wenchao-li"],
+    collaboratorIds: ["ilker-isik", "sabbir-ahmad"],
+    createdAt: "2026-08-03",
+    updatedAt: "2026-08-03",
+    lastModifiedAt: "2026-08-03 16:30",
+    lastVerifiedAt: "2026-08-03",
+    sources: [
+      source("Zijian Guo personal website", "https://ja4822.github.io/zijianguo.github.io/"),
+      source("SpecRLBench arXiv", "https://arxiv.org/abs/2604.24729"),
+      source("SpecRLBench GitHub", "https://github.com/BU-DEPEND-Lab/SpecRLBench"),
+      source("GenZ-LTL project page", "https://bu-depend-lab.github.io/GenZ-LTL/"),
+    ],
+  }),
+  basePerson({
+    id: "ilker-isik",
+    name: "İlker Işık",
+    role: "PhD Student",
+    title: "PhD Student",
+    lab: "Dependable Computing Lab",
+    department: "Electrical and Computer Engineering",
+    bio: "BU ECE 博士生，研究形式化推理、神经符号 AI、开放词汇和结构泛化，是 SpecRLBench 与 GenZ-LTL 共同作者。",
+    currentResearchFocus:
+      "任务规格表示、LTL 泛化、开放词汇、结构泛化与 symbol-invariant model design。",
+    contacts: [
+      contact("邮箱", "iilker@bu.edu"),
+      contact("主页", "https://necrashter.github.io/", "个人主页"),
+    ],
+    shortAssessment:
+      "第二优先级。偏方法和表示，可回答规格如何生成、难度如何控制、模型是否真的理解规则。",
+    researchTopics: ["Neuro-symbolic AI", "Temporal Logic", "Formal Methods"],
+    secondaryTopics: ["Benchmark", "AI Safety", "Embodied Evaluation"],
+    representativeProjects: ["SpecRLBench", "GenZ-LTL", "Symbol-Invariant Transformer"],
+    researchMode: "仿真 + 形式化规格",
+    whyImportant:
+      "对下一代 Benchmark 的自然语言到形式化规格、开放词汇和抗模板记忆设计有价值。",
+    zodaRelevance:
+      "可帮助设计物体/区域/变量重命名、新符号、新任务结构和中英文指令等抗数据污染评测。",
+    potentialDataNeed:
+      "不同表面表达但等价逻辑结构的任务指令、变量重命名样本、开放词汇任务规格和人工审核标签。",
+    benchmarkValue:
+      "适合参与 Natural Language ↔ Formal Specification Benchmark 与 neuro-symbolic generalization 测试。",
+    networkValue:
+      "可补充 Zijian 的 Benchmark 工程视角，帮助判断语言接口和形式化规格扩展是否可行。",
+    recommendedApproach:
+      "在联系 Zijian 后作为第二位推进，重点问 LTL 规格生成、难度控制和自然语言接口。",
+    interviewQuestions:
+      "如何防止模型依赖模板或 token？自然语言指令到 LTL/STL 规格时，哪些歧义最容易导致评测失真？",
+    priority: "A",
     researchStatus: "待调研",
     contactStatus: "暂不联系",
-    flags: ["需要上级判断"],
-    tags: ["BU", "Benchmark Author"],
-    nextAction: "请上级判断是否继续作为高核验对象。",
-    managerNote: "形式化方法和具身评测相关，建议先确认优先级再决定是否联系。",
-    lastVerifiedAt: "2026-07-12",
-    adviseeIds: ["meredith-anderson"],
+    flags: ["重点关注", "潜在合作对象"],
+    tags: ["BU", "SpecRLBench", "Formal Specification"],
+    nextAction: "等待 Zijian 反馈后，围绕自然语言接口和结构泛化补一轮问题。",
+    advisorIds: ["wenchao-li"],
+    collaboratorIds: ["zijian-guo", "sabbir-ahmad"],
+    createdAt: "2026-08-03",
+    updatedAt: "2026-08-03",
+    lastModifiedAt: "2026-08-03 16:30",
+    lastVerifiedAt: "2026-08-03",
+    sources: [
+      source("İlker Işık personal website", "https://necrashter.github.io/"),
+      source("Dependable Computing Laboratory People", "https://sites.bu.edu/depend/people/"),
+      source("GenZ-LTL project page", "https://bu-depend-lab.github.io/GenZ-LTL/"),
+    ],
   }),
   basePerson({
     id: "roberto-tron",
@@ -425,17 +599,106 @@ export const seedPeople: Person[] = [
   }),
   basePerson({
     id: "sabbir-ahmad",
-    name: "Sabbir Ahmad",
+    name: "H. M. Sabbir Ahmad",
     role: "PhD Student",
     title: "PhD Student",
-    lab: "Collaborative Autonomy Group",
-    department: "Mechanical Engineering",
-    researchTopics: ["Robot Planning", "Multi-Robot Systems"],
-    priority: "未评估",
+    lab: "Dependable Computing Lab",
+    department: "Systems Engineering",
+    bio: "BU Systems Engineering 五年级博士生，研究 Safe RL、Control Barrier Function、最优控制、CPS 安全、自动驾驶网络攻击和信任感知控制。",
+    currentResearchFocus:
+      "Safe RL、CBF 安全控制、动态环境、扰动与故障恢复评测。",
+    contacts: [
+      contact("邮箱", "sabbir92@bu.edu"),
+      contact("主页", "https://sabbirahmad26.github.io/", "个人主页"),
+      contact("主页", "https://bu-depend-lab.github.io/HMARL-CBF/", "HMARL-CBF"),
+    ],
+    shortAssessment:
+      "安全评测负责人。优先级 A-，联系时不要主打多智能体协作，应聚焦安全指标、动态环境和故障恢复。",
+    researchTopics: ["Safe Reinforcement Learning", "AI Safety", "Control Systems"],
+    secondaryTopics: ["Temporal Logic", "Benchmark", "Autonomous Navigation"],
+    representativeProjects: ["SpecRLBench", "GenZ-LTL", "HMARL-CBF"],
+    benchmarks: ["SpecRLBench", "MetaDrive"],
+    researchMode: "仿真 + 安全控制",
+    whyImportant:
+      "能把安全要求转化为连续控制指标，包括最小安全距离、违规次数/持续时间和 safety controller 介入频率。",
+    zodaRelevance:
+      "可支撑 Safe VLA Benchmark、安全反例与失败轨迹数据集、动态环境扰动恢复等中期合作方向。",
+    potentialDataNeed:
+      "安全违规轨迹、动态障碍、人类干扰、传感扰动、通信异常、恢复路径和反事实修正标签。",
+    benchmarkValue:
+      "适合定义 Task Success + Specification Satisfaction + Safety Violation + Recovery + Efficiency 的组合指标。",
+    networkValue:
+      "与 Wenchao Li、Christos Cassandras 和 MIT Chuchu Fan 等安全控制网络有关。",
+    recommendedApproach:
+      "作为第三推进对象，围绕安全指标和动态环境问具体可扩展点，避免把重点放在多车协同。",
+    interviewQuestions:
+      "安全控制器介入频率、恢复能力和效率损失应该如何标准化评测？哪些扰动最适合从仿真扩展到具身任务？",
+    priority: "A",
     researchStatus: "待调研",
     contactStatus: "暂不联系",
-    tags: ["BU", "Multi-Robot"],
-    advisorIds: ["alyssa-pierson"],
+    flags: ["重点关注", "潜在合作对象"],
+    tags: ["BU", "SpecRLBench", "Safe RL"],
+    nextAction: "在 SpecRLBench 方向确认后，补安全指标和动态扰动问题清单。",
+    advisorIds: ["wenchao-li"],
+    collaboratorIds: ["zijian-guo", "ilker-isik"],
+    createdAt: "2026-08-03",
+    updatedAt: "2026-08-03",
+    lastModifiedAt: "2026-08-03 16:30",
+    lastVerifiedAt: "2026-08-03",
+    sources: [
+      source("Sabbir Ahmad personal website", "https://sabbirahmad26.github.io/"),
+      source("HMARL-CBF project page", "https://bu-depend-lab.github.io/HMARL-CBF/"),
+      source("SpecRLBench arXiv", "https://arxiv.org/abs/2604.24729"),
+    ],
+  }),
+  basePerson({
+    id: "chenyu-wang",
+    name: "Chenyu Wang",
+    role: "PhD Student",
+    title: "PhD Student",
+    lab: "Dependable Computing Lab",
+    department: "Electrical and Computer Engineering",
+    bio: "BU ECE 博士生，与 Kayhan Batmanghelich 联合指导，方向包括 VLM、不确定性量化和可解释 AI。",
+    currentResearchFocus:
+      "Explainable AI、Uncertainty Quantification、VLM，以及事实性和语义一致性不确定性。",
+    contacts: [
+      contact("邮箱", "chyuwang@bu.edu"),
+      contact("主页", "https://sites.bu.edu/depend/people/", "Depend Lab People"),
+    ],
+    shortAssessment:
+      "条件性保留。当前成果不在 SpecRLBench 或机器人安全主线，适合未来转向 VLM/VLA 不确定性和安全拒绝时再推进。",
+    researchTopics: ["AI Safety", "Neuro-symbolic AI", "Embodied Evaluation"],
+    secondaryTopics: ["Vision-Language-Action", "Benchmark"],
+    representativeProjects: ["Uncertainty Quantification for VLM / report generation"],
+    researchMode: "多模态模型评测",
+    whyImportant:
+      "可延伸到 VLA 动作预测不确定性、模型何时拒绝行动、感知不确定时的保守策略和 hallucinated object 安全评测。",
+    zodaRelevance:
+      "当前不是第一批联系对象，但适合作为多模态安全、VLA 不确定性和 hallucination 评测的备选。",
+    potentialDataNeed:
+      "不确定性感知、多模态 hallucination、安全拒绝、错误场景理解和保守行动策略的标注样本。",
+    benchmarkValue:
+      "可作为 Safe VLA Benchmark 的模型不确定性模块补充，不作为 SpecRLBench 主线联系人。",
+    networkValue:
+      "连接 Depend Lab 与多模态模型安全评测方向。",
+    recommendedApproach:
+      "暂不联系；等项目转向 VLM/VLA 不确定性、安全拒绝或多模态 hallucination 时再推进。",
+    interviewQuestions:
+      "VLA 在感知不确定或对象理解错误时，哪些拒绝/求助/保守动作指标最值得评测？",
+    priority: "B",
+    researchStatus: "待调研",
+    contactStatus: "暂不联系",
+    flags: ["信息待核验"],
+    tags: ["BU"],
+    nextAction: "作为多模态安全方向备选保留，暂不进入第一轮联系。",
+    advisorIds: ["wenchao-li"],
+    createdAt: "2026-08-03",
+    updatedAt: "2026-08-03",
+    lastModifiedAt: "2026-08-03 16:30",
+    lastVerifiedAt: "2026-08-03",
+    sources: [
+      source("Dependable Computing Laboratory People", "https://sites.bu.edu/depend/people/"),
+    ],
   }),
   basePerson({
     id: "kamran-vakil",
@@ -488,6 +751,17 @@ export const seedPeople: Person[] = [
 
 export const seedActivities: ActivityLog[] = [
   {
+    id: "activity-20260803-1",
+    actor: "Eric",
+    actorRole: "Admin",
+    action: "新增资料",
+    targetType: "organization",
+    targetId: "dependable-computing-lab",
+    summary:
+      "Eric 根据 Dependable Computing Lab 深度调研补充了 SpecRLBench 相关组织和核心成员。",
+    createdAt: "2026-08-03 16:30",
+  },
+  {
     id: "activity-1",
     actor: "Eric",
     actorRole: "Admin",
@@ -530,6 +804,23 @@ export const seedActivities: ActivityLog[] = [
 ];
 
 export const seedUpdates: WorkUpdate[] = [
+  {
+    id: "update-20260803-1",
+    updateType: "新增研究判断",
+    title: "补充 Dependable Computing Lab 与 SpecRLBench 线索",
+    summary:
+      "新增 Dependable Computing Lab 组织卡，并补充 Zijian Guo、İlker Işık、H. M. Sabbir Ahmad、Chenyu Wang 及 Wenchao Li 的 Benchmark / Safe RL / formal specification 判断。",
+    insight:
+      "Dependable Computing Lab 的核心价值不是大规模真实机器人数据，而是把复杂任务、安全要求和时间顺序转化为可计算、可验证、可复现的 Benchmark；第一联系对象应为 SpecRLBench 第一作者 Zijian Guo。",
+    linkedPersonId: "zijian-guo",
+    linkedPerson: "Zijian Guo",
+    linkedOrganization: "Dependable Computing Lab",
+    feishuUrl: "https://example.feishu.cn/docx/zijian-guo",
+    author: "Eric",
+    occurredAt: "2026-08-03 16:30",
+    createdAt: "2026-08-03 16:30",
+    updatedAt: "2026-08-03 16:30",
+  },
   {
     id: "update-20260717-1",
     updateType: "新增研究判断",
@@ -625,40 +916,52 @@ export const seedUpdates: WorkUpdate[] = [
 export const seedDashboardBrief: DashboardBrief = {
   title: "BU 具身智能科研对象池建设",
   description:
-    "正在梳理 BU 相关教授、博士、硕士和实验室，重点关注 VLA、多机器人、机器人操作和真实机器人数据。",
-  focusAreas: ["VLA", "多机器人", "机器人操作", "真实机器人数据"],
-  updatedAt: "2026-07-17 11:05",
+    "正在梳理 BU 相关教授、博士、硕士和实验室，重点关注 VLA、多机器人、机器人操作、真实机器人数据与可验证 Benchmark。\n\n最新补充：Dependable Computing Lab 更适合作为 SpecRLBench / Safe RL / formal specification 方向的 Benchmark 合作线索，第一联系对象建议为 Zijian Guo。",
+  focusAreas: ["VLA", "真实机器人数据", "SpecRLBench", "Safe RL", "Formal Specification"],
+  updatedAt: "2026-08-03 16:30",
   updatedBy: "Eric",
 };
 
 export const seedNextSteps: NextStep[] = [
   {
     id: "next-step-1",
-    content: "补齐高优先级人员的飞书人物资料和公开来源。",
+    content: "为 Zijian Guo 准备第一封联系提纲，并单独精读 SpecRLBench。",
     completed: false,
     sortOrder: 1,
-    createdAt: "2026-07-17 11:05",
-    updatedAt: "2026-07-17 11:05",
+    createdAt: "2026-08-03 16:30",
+    updatedAt: "2026-08-03 16:30",
   },
   {
     id: "next-step-2",
-    content: "继续整理 BU 博士生和博后名单，优先看 VLA 与真实机器人数据。",
+    content: "整理 SpecRLBench-Embodied 可扩展任务：真实物体、RGB-D/视频、语言指令和长程组合任务。",
     completed: false,
     sortOrder: 2,
-    createdAt: "2026-07-17 11:05",
-    updatedAt: "2026-07-17 11:05",
+    createdAt: "2026-08-03 16:30",
+    updatedAt: "2026-08-03 16:30",
   },
   {
     id: "next-step-3",
-    content: "把有明确判断的新增记录沉淀为上级可快速阅读的日报。",
+    content: "把 İlker Işık 和 Sabbir Ahmad 的问题清单拆成形式化规格与安全指标两条支线。",
     completed: false,
     sortOrder: 3,
-    createdAt: "2026-07-17 11:05",
-    updatedAt: "2026-07-17 11:05",
+    createdAt: "2026-08-03 16:30",
+    updatedAt: "2026-08-03 16:30",
   },
 ];
 
 export const seedOrganizations: ResearchOrganization[] = [
+  {
+    id: "dependable-computing-lab",
+    name: "Dependable Computing Lab",
+    type: "实验室",
+    priority: "A",
+    websiteUrl: "https://sites.bu.edu/depend/people/",
+    note:
+      "Wenchao Li 领导的 BU 实验室，主线为 specification-guided learning、Safe RL、Temporal Logic、neuro-symbolic generalization 与安全关键自主系统。已有 SpecRLBench，适合作为可验证具身 Benchmark、自然语言到形式化规格和 Safe VLA 评测合作线索；第一联系对象建议为 Zijian Guo。",
+    sourceCount: 0,
+    createdAt: "2026-08-03 16:30",
+    updatedAt: "2026-08-03 16:30",
+  },
   {
     id: "h2x-lab",
     name: "H2X Lab",
