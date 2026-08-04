@@ -200,6 +200,9 @@ export function normalizeOrganizationPriority(organization: Partial<ResearchOrga
   if (name === "h2x lab") {
     return "S";
   }
+  if (name === "dependable computing lab") {
+    return "A";
+  }
   if (name === "collaborative autonomy group" || name === "cag") {
     return "B";
   }

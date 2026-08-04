@@ -96,6 +96,7 @@ function normalizeOrganizationPriority(organization: Partial<ResearchOrganizatio
   }
   const name = String(organization.name ?? "").trim().toLowerCase();
   if (name === "h2x lab") return "S";
+  if (name === "dependable computing lab") return "A";
   if (name === "collaborative autonomy group" || name === "cag") return "B";
   return "B";
 }
@@ -394,14 +395,24 @@ function normalizeOrganizationType(value = "") {
   return trimmed || "实验室";
 }
 
-function organizationToRow(organization: Partial<ResearchOrganization>) {
-  return {
+function organizationToRow(
+  organization: Partial<ResearchOrganization>,
+  options: { includePriority?: boolean } = {},
+) {
+  const row: Record<string, unknown> = {
     name: organization.name?.trim() || "未命名组织",
     organization_type: organization.type?.trim() || "实验室",
-    priority: normalizeOrganizationPriority(organization),
     website_url: organization.websiteUrl?.trim() || "",
     note: organization.note?.trim() || "",
   };
+  if (options.includePriority !== false) {
+    row.priority = normalizeOrganizationPriority(organization);
+  }
+  return row;
+}
+
+function isMissingOrganizationPriorityColumn(error: unknown) {
+  return error instanceof Error && /organizations\\.priority|priority.*column|column.*priority/i.test(error.message);
 }
 
 function updateToRow(update: Partial<WorkUpdate>, user: CurrentUser) {
@@ -945,16 +956,25 @@ export async function createOrganization(
   payload: OrganizationPayload,
   user: CurrentUser,
 ) {
-  const rows = await supabaseFetch<OrganizationRow[]>(
-    "/organizations?on_conflict=name&select=*",
-    {
+  let rows: OrganizationRow[];
+  try {
+    rows = await supabaseFetch<OrganizationRow[]>("/organizations?on_conflict=name&select=*", {
       method: "POST",
       headers: {
         Prefer: "resolution=merge-duplicates,return=representation",
       },
       body: JSON.stringify(organizationToRow(payload.organization)),
-    },
-  );
+    });
+  } catch (error) {
+    if (!isMissingOrganizationPriorityColumn(error)) throw error;
+    rows = await supabaseFetch<OrganizationRow[]>("/organizations?on_conflict=name&select=*", {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(organizationToRow(payload.organization, { includePriority: false })),
+    });
+  }
   const saved = organizationFromRow(rows[0]);
   await appendActivity({
     actor: user.name,
@@ -979,21 +999,44 @@ export async function patchOrganization(
     return null;
   }
   const current = organizationFromRow(currentRows[0]);
-  const rows = await supabaseFetch<OrganizationRow[]>(
-    `/organizations?id=eq.${encodeURIComponent(id)}&select=*`,
-    {
-      method: "PATCH",
-      headers: {
-        Prefer: "return=representation",
+  let rows: OrganizationRow[];
+  try {
+    rows = await supabaseFetch<OrganizationRow[]>(
+      `/organizations?id=eq.${encodeURIComponent(id)}&select=*`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(
+          organizationToRow({
+            ...current,
+            ...payload.organization,
+          }),
+        ),
       },
-      body: JSON.stringify(
-        organizationToRow({
-          ...current,
-          ...payload.organization,
-        }),
-      ),
-    },
-  );
+    );
+  } catch (error) {
+    if (!isMissingOrganizationPriorityColumn(error)) throw error;
+    rows = await supabaseFetch<OrganizationRow[]>(
+      `/organizations?id=eq.${encodeURIComponent(id)}&select=*`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(
+          organizationToRow(
+            {
+              ...current,
+              ...payload.organization,
+            },
+            { includePriority: false },
+          ),
+        ),
+      },
+    );
+  }
   const saved = organizationFromRow(rows[0]);
   const priorityChanged = current.priority !== saved.priority;
   await appendActivity({

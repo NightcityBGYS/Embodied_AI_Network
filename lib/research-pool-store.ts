@@ -109,6 +109,7 @@ function normalizeOrganizationPriority(organization: Partial<ResearchOrganizatio
   }
   const name = String(organization.name ?? "").trim().toLowerCase();
   if (name === "h2x lab") return "S";
+  if (name === "dependable computing lab") return "A";
   if (name === "collaborative autonomy group" || name === "cag") return "B";
   return "B";
 }
